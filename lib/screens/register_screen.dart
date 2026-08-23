@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'verified_screen.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -18,53 +18,89 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  final SupabaseClient supabase = Supabase.instance.client;
+
   bool _isLoading = false;
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
 
-  final supabase = Supabase.instance.client;
-
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    final fullName = _fullNameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final String fullName = _fullNameController.text.trim();
+    final String email = _emailController.text.trim();
+    final String password = _passwordController.text;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final response = await supabase.auth.signUp(
+      final AuthResponse response = await supabase.auth.signUp(
         email: email,
         password: password,
 
-        // This goes into auth.users raw_user_meta_data.
-        // Our Supabase trigger will copy full_name into profiles.
-        data: {'full_name': fullName},
+        // After the user verifies the email,
+        // Supabase can redirect back to SafeZone.
+        emailRedirectTo: 'safezone://verify-email',
+
+        // Stored inside auth.users raw_user_meta_data.
+        // Our Supabase trigger will copy this into public.profiles.
+        data: {
+          'full_name': fullName,
+        },
       );
 
       if (!mounted) return;
 
-      if (response.user != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => VerifiedScreen(email: email)),
+      final User? user = response.user;
+
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to create account. Please try again.',
+            ),
+          ),
         );
+
+        return;
       }
+
+      // Registration successful.
+      // Pass both email and Supabase User ID to VerifiedScreen.
+      //
+      // userId is needed so the verification screen can
+      // automatically check Supabase backend every few seconds.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifiedScreen(
+            email: email,
+            userId: user.id,
+          ),
+        ),
+      );
     } on AuthException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+        ),
+      );
     } catch (e) {
+      debugPrint('Register error: $e');
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
+          content: Text(
+            'Something went wrong. Please try again.',
+          ),
         ),
       );
     } finally {
@@ -82,13 +118,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
+      appBar: AppBar(
+        title: const Text('Register'),
+      ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -96,10 +136,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             key: _formKey,
             child: Column(
               children: [
+                // FULL NAME
                 TextFormField(
                   controller: _fullNameController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                  ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your full name';
@@ -111,19 +154,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 16),
 
+                // EMAIL
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                  ),
                   validator: (value) {
-                    final email = value?.trim() ?? '';
+                    final String email = value?.trim() ?? '';
 
                     if (email.isEmpty) {
                       return 'Please enter your email';
                     }
 
-                    if (!email.contains('@')) {
+                    if (!email.contains('@') ||
+                        !email.contains('.')) {
                       return 'Please enter a valid email';
                     }
 
@@ -133,6 +181,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 16),
 
+                // PASSWORD
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _hidePassword,
@@ -146,7 +195,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         });
                       },
                       icon: Icon(
-                        _hidePassword ? Icons.visibility_off : Icons.visibility,
+                        _hidePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                     ),
                   ),
@@ -165,15 +216,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 16),
 
+                // CONFIRM PASSWORD
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _hideConfirmPassword,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!_isLoading) {
+                      _register();
+                    }
+                  },
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _hideConfirmPassword = !_hideConfirmPassword;
+                          _hideConfirmPassword =
+                          !_hideConfirmPassword;
                         });
                       },
                       icon: Icon(
@@ -184,6 +243,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm your password';
+                    }
+
                     if (value != _passwordController.text) {
                       return 'Passwords do not match';
                     }
@@ -194,17 +257,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 28),
 
+                // REGISTER BUTTON
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _register,
                     child: _isLoading
                         ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Register'),
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : const Text(
+                      'Register',
+                    ),
                   ),
                 ),
               ],

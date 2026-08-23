@@ -11,10 +11,10 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState
     extends State<ForgotPasswordScreen> {
-  final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
 
-  final supabase = Supabase.instance.client;
+  final SupabaseClient supabase = Supabase.instance.client;
 
   bool _isLoading = false;
 
@@ -31,8 +31,7 @@ class _ForgotPasswordScreenState
       await supabase.auth.resetPasswordForEmail(
         email,
 
-        // We will configure this in Supabase Dashboard
-        // + AndroidManifest next.
+        // Reset link successful → return to SafeZone App
         redirectTo: 'safezone://reset-password',
       );
 
@@ -53,7 +52,11 @@ class _ForgotPasswordScreenState
           content: Text(e.message),
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint(
+        'FORGOT PASSWORD ERROR: $e',
+      );
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,37 +85,75 @@ class _ForgotPasswordScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Forgot Password'),
+        title: const Text(
+          'Forgot Password',
+        ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: 20),
+
+                const Icon(
+                  Icons.lock_reset_rounded,
+                  size: 80,
+                ),
+
+                const SizedBox(height: 24),
+
+                const Text(
+                  'Reset Your Password',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
                 const Text(
                   'Enter your registered email address. '
                       'We will send you a password reset link.',
                   textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 30),
 
                 TextFormField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType:
+                  TextInputType.emailAddress,
+                  textInputAction:
+                  TextInputAction.done,
+                  autocorrect: false,
+                  onFieldSubmitted: (_) {
+                    if (!_isLoading) {
+                      _sendResetEmail();
+                    }
+                  },
                   decoration: const InputDecoration(
                     labelText: 'Email',
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                    ),
                   ),
                   validator: (value) {
-                    final email = value?.trim() ?? '';
+                    final email =
+                        value?.trim() ?? '';
 
                     if (email.isEmpty) {
                       return 'Please enter your email';
                     }
 
-                    if (!email.contains('@')) {
+                    if (!email.contains('@') ||
+                        !email.contains('.')) {
                       return 'Please enter a valid email';
                     }
 
@@ -120,18 +161,21 @@ class _ForgotPasswordScreenState
                   },
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
 
                 SizedBox(
-                  width: double.infinity,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed:
-                    _isLoading ? null : _sendResetEmail,
+                    _isLoading
+                        ? null
+                        : _sendResetEmail,
                     child: _isLoading
                         ? const SizedBox(
-                      height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(
+                      height: 22,
+                      child:
+                      CircularProgressIndicator(
                         strokeWidth: 2,
                       ),
                     )
