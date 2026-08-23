@@ -16,13 +16,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   // ============================================================
-  // TEMPORARY HOME DATA
-  // Later:
-  // Location        -> GPS
-  // Risk            -> data.gov.my + risk calculation
-  // Incidents       -> Supabase
-  // Map             -> Google Maps / Flutter Map
-  // SOS             -> Supabase + Live GPS
+  // TEMPORARY DATA
+  // Later replace these with real GPS / data.gov.my / Supabase.
   // ============================================================
 
   String _locationName = 'Detecting your location...';
@@ -31,13 +26,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String _riskLevel = 'LOW';
   int _riskScore = 24;
 
-  int _nearbyIncidents = 0;
   int _historicalCases = 0;
-
-  bool _locationEnabled = false;
+  int _nearbyIncidents = 0;
 
   // ============================================================
-  // USER INFORMATION
+  // USER
   // ============================================================
 
   User? get _currentUser => supabase.auth.currentUser;
@@ -49,11 +42,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return 'User';
     }
 
-    final metadataName =
+    final fullName =
     user.userMetadata?['full_name']?.toString().trim();
 
-    if (metadataName != null && metadataName.isNotEmpty) {
-      return metadataName;
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
     }
 
     final email = user.email;
@@ -70,19 +63,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // FUTURE FUNCTIONS
+  // REFRESH
   // ============================================================
 
   Future<void> _refreshHome() async {
     // Later:
-    // 1. Get GPS
-    // 2. Determine district
-    // 3. Fetch historical crime data
-    // 4. Calculate risk score
-    // 5. Fetch nearby SafeZone incidents
+    // GPS
+    // District
+    // data.gov.my
+    // Risk calculation
+    // Nearby SafeZone incidents
 
     await Future.delayed(
-      const Duration(milliseconds: 600),
+      const Duration(milliseconds: 500),
     );
 
     if (!mounted) return;
@@ -96,15 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openFullMap() {
-    setState(() {
-      _currentIndex = 1;
-    });
-  }
+  // ============================================================
+  // SOS
+  // ============================================================
 
   void _startSOS() {
-    // Later connect to SOS flow.
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -121,12 +110,11 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 44,
+                  width: 45,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade600,
-                    borderRadius:
-                    BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.grey,
                   ),
                 ),
 
@@ -134,16 +122,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const Icon(
                   Icons.sos_rounded,
-                  size: 70,
+                  size: 72,
                   color: Colors.redAccent,
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 15),
 
                 const Text(
                   'Emergency SOS',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 25,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -151,27 +139,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
 
                 const Text(
-                  'Your emergency alert will be sent together '
-                      'with your live location to nearby SafeZone users.',
+                  'Are you sure you need emergency assistance?',
                   textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                  ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
+
+                const Text(
+                  'Your location will be shared with verified '
+                      'SafeZone users nearby.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(height: 25),
 
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                      Colors.redAccent,
+                      backgroundColor: Colors.redAccent,
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () {
                       Navigator.pop(context);
 
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      // TODO:
+                      // Later connect real SOS function here.
+
+                      ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
                             'SOS function will be connected next.',
@@ -183,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icons.warning_amber_rounded,
                     ),
                     label: const Text(
-                      'Activate SOS',
+                      'Confirm SOS',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
@@ -191,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 TextButton(
                   onPressed: () {
@@ -208,6 +210,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
 
   Future<void> _logout() async {
     try {
@@ -246,15 +252,11 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _currentIndex,
         children: [
           _buildHomePage(),
-          _buildMapPage(),
+          _buildSafetyDataPage(),
           _buildActivityPage(),
           _buildProfilePage(),
         ],
       ),
-
-      // ========================================================
-      // BOTTOM NAVIGATION
-      // ========================================================
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
@@ -273,15 +275,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             label: 'Home',
           ),
+
           NavigationDestination(
             icon: Icon(
-              Icons.map_outlined,
+              Icons.analytics_outlined,
             ),
             selectedIcon: Icon(
-              Icons.map_rounded,
+              Icons.analytics_rounded,
             ),
-            label: 'Map',
+            label: 'Safety Data',
           ),
+
           NavigationDestination(
             icon: Icon(
               Icons.history_outlined,
@@ -291,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             label: 'Activity',
           ),
+
           NavigationDestination(
             icon: Icon(
               Icons.person_outline,
@@ -306,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // HOME PAGE
+  // HOME
   // ============================================================
 
   Widget _buildHomePage() {
@@ -331,14 +336,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    borderRadius:
-                    BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(15),
                     color: Theme.of(context)
                         .colorScheme
                         .primary
-                        .withValues(
-                      alpha: 0.15,
-                    ),
+                        .withOpacity(0.15),
                   ),
                   child: Icon(
                     Icons.shield_rounded,
@@ -358,12 +360,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         'Hello, $_userName',
                         maxLines: 1,
-                        overflow:
-                        TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 21,
-                          fontWeight:
-                          FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
 
@@ -391,8 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   tooltip: 'Notifications',
                   onPressed: () {},
                   icon: Badge(
-                    isLabelVisible:
-                    _nearbyIncidents > 0,
+                    isLabelVisible: _nearbyIncidents > 0,
                     child: const Icon(
                       Icons.notifications_none_rounded,
                     ),
@@ -401,98 +400,86 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
 
-            const SizedBox(height: 26),
-
-            // ==================================================
-            // CURRENT LOCATION
-            // ==================================================
-
-            _sectionTitle(
-              title: 'Current Location',
-              icon: Icons.location_on_outlined,
-            ),
-
-            const SizedBox(height: 10),
-
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: _cardDecoration(context),
-              child: Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.blue
-                          .withValues(
-                        alpha: 0.12,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.my_location_rounded,
-                      color: Colors.blue,
-                    ),
-                  ),
-
-                  const SizedBox(width: 15),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _locationName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight:
-                            FontWeight.w600,
-                          ),
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        Text(
-                          _district,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Icon(
-                    _locationEnabled
-                        ? Icons.gps_fixed_rounded
-                        : Icons.gps_not_fixed_rounded,
-                  ),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 24),
 
             // ==================================================
-            // RISK STATUS
+            // CURRENT AREA + RISK COMBINED
             // ==================================================
 
             _sectionTitle(
-              title: 'Safety Risk',
-              icon: Icons.health_and_safety_outlined,
+              icon: Icons.location_on_outlined,
+              title: 'Your Current Area',
             ),
 
             const SizedBox(height: 10),
 
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: _cardDecoration(context),
+              decoration: _cardDecoration(),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue.withOpacity(0.12),
+                        ),
+                        child: const Icon(
+                          Icons.my_location_rounded,
+                          color: Colors.blue,
+                        ),
+                      ),
+
+                      const SizedBox(width: 14),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _locationName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Text(
+                              _district,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Icon(
+                        Icons.gps_fixed_rounded,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  Divider(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant,
+                  ),
+
+                  const SizedBox(height: 15),
+
                   Row(
                     children: [
                       Expanded(
@@ -501,40 +488,33 @@ class _HomeScreenState extends State<HomeScreen> {
                           CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Current Risk Level',
+                              'Safety Risk',
                               style: TextStyle(
                                 fontSize: 13,
                               ),
                             ),
 
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
 
                             Row(
                               children: [
                                 Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration:
-                                  BoxDecoration(
-                                    shape:
-                                    BoxShape.circle,
-                                    color:
-                                    _riskColor(),
+                                  width: 11,
+                                  height: 11,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _riskColor(),
                                   ),
                                 ),
 
-                                const SizedBox(
-                                  width: 9,
-                                ),
+                                const SizedBox(width: 8),
 
                                 Text(
                                   _riskLevel,
                                   style: TextStyle(
-                                    fontSize: 25,
-                                    fontWeight:
-                                    FontWeight.bold,
-                                    color:
-                                    _riskColor(),
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: _riskColor(),
                                   ),
                                 ),
                               ],
@@ -543,77 +523,94 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      Container(
-                        width: 82,
-                        height: 82,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            width: 7,
-                            color: _riskColor()
-                                .withValues(
-                              alpha: 0.25,
+                      Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            'Risk Score',
+                            style: TextStyle(
+                              fontSize: 12,
                             ),
                           ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment:
-                          MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '$_riskScore',
-                              style: const TextStyle(
-                                fontSize: 23,
-                                fontWeight:
-                                FontWeight.bold,
-                              ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            '$_riskScore / 100',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const Text(
-                              '/100',
-                              style: TextStyle(
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 17),
 
                   ClipRRect(
-                    borderRadius:
-                    BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(20),
                     child: LinearProgressIndicator(
-                      value:
-                      _riskScore / 100,
-                      minHeight: 8,
-                      backgroundColor:
-                      Theme.of(context)
+                      value: _riskScore / 100,
+                      minHeight: 7,
+                      backgroundColor: Theme.of(context)
                           .colorScheme
                           .surfaceContainerHighest,
                       color: _riskColor(),
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 18),
 
                   Row(
                     children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        size: 17,
+                      Expanded(
+                        child: _miniRiskStat(
+                          label: 'Historical Cases',
+                          value: '$_historicalCases',
+                          icon: Icons.bar_chart_rounded,
+                        ),
                       ),
 
-                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 42,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant,
+                      ),
+
+                      Expanded(
+                        child: _miniRiskStat(
+                          label: 'Active Incidents',
+                          value: '$_nearbyIncidents',
+                          icon:
+                          Icons.warning_amber_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  Row(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 16,
+                      ),
+
+                      const SizedBox(width: 7),
 
                       Expanded(
                         child: Text(
                           _riskDescription(),
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ),
@@ -626,251 +623,21 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
 
             // ==================================================
-            // STATS
-            // ==================================================
-
-            Row(
-              children: [
-                Expanded(
-                  child: _smallStatCard(
-                    icon:
-                    Icons.warning_amber_rounded,
-                    title: 'Nearby',
-                    value:
-                    '$_nearbyIncidents',
-                    subtitle:
-                    'Active incidents',
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _smallStatCard(
-                    icon:
-                    Icons.analytics_outlined,
-                    title: 'Historical',
-                    value:
-                    '$_historicalCases',
-                    subtitle:
-                    'Reported cases',
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // ==================================================
-            // MAP PREVIEW
-            // ==================================================
-
-            Row(
-              mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
-              children: [
-                _sectionTitle(
-                  title: 'Safety Map',
-                  icon: Icons.map_outlined,
-                ),
-
-                TextButton(
-                  onPressed: _openFullMap,
-                  child: const Text(
-                    'View Map',
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            InkWell(
-              borderRadius:
-              BorderRadius.circular(20),
-              onTap: _openFullMap,
-              child: Container(
-                height: 210,
-                decoration: BoxDecoration(
-                  borderRadius:
-                  BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant,
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Theme.of(context)
-                          .colorScheme
-                          .surfaceContainer,
-                      Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius:
-                        BorderRadius.circular(
-                          20,
-                        ),
-                        child: CustomPaint(
-                          painter:
-                          _MapBackgroundPainter(),
-                        ),
-                      ),
-                    ),
-
-                    const Center(
-                      child: Icon(
-                        Icons.location_on_rounded,
-                        size: 50,
-                        color: Colors.blueAccent,
-                      ),
-                    ),
-
-                    Positioned(
-                      left: 15,
-                      top: 15,
-                      child: Container(
-                        padding:
-                        const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration:
-                        BoxDecoration(
-                          color: Colors.black
-                              .withValues(
-                            alpha: 0.65,
-                          ),
-                          borderRadius:
-                          BorderRadius.circular(
-                            12,
-                          ),
-                        ),
-                        child: const Text(
-                          'Live Safety Map',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight:
-                            FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    Positioned(
-                      right: 15,
-                      bottom: 15,
-                      child: Container(
-                        padding:
-                        const EdgeInsets.all(
-                          10,
-                        ),
-                        decoration:
-                        BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surface,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.fullscreen_rounded,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ==================================================
-            // NEARBY INCIDENT
-            // ==================================================
-
-            _sectionTitle(
-              title: 'Nearby Incidents',
-              icon: Icons.crisis_alert_outlined,
-            ),
-
-            const SizedBox(height: 10),
-
-            if (_nearbyIncidents == 0)
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration:
-                _cardDecoration(context),
-                child: const Column(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 40,
-                      color: Colors.green,
-                    ),
-
-                    SizedBox(height: 10),
-
-                    Text(
-                      'No active incidents nearby',
-                      style: TextStyle(
-                        fontWeight:
-                        FontWeight.w600,
-                      ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text(
-                      'No SafeZone emergency alerts '
-                          'have been detected within 1 km.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              _incidentCard(),
-
-            const SizedBox(height: 26),
-
-            // ==================================================
             // SOS
             // ==================================================
 
             Container(
-              padding: const EdgeInsets.all(22),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                borderRadius:
-                BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: Colors.redAccent.withOpacity(0.4),
+                ),
                 gradient: LinearGradient(
                   colors: [
-                    Colors.redAccent
-                        .withValues(
-                      alpha: 0.20,
-                    ),
-                    Colors.redAccent
-                        .withValues(
-                      alpha: 0.06,
-                    ),
+                    Colors.redAccent.withOpacity(0.18),
+                    Colors.redAccent.withOpacity(0.04),
                   ],
-                ),
-                border: Border.all(
-                  color: Colors.redAccent
-                      .withValues(
-                    alpha: 0.35,
-                  ),
                 ),
               ),
               child: Column(
@@ -879,86 +646,226 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Need Emergency Help?',
                     style: TextStyle(
                       fontSize: 20,
-                      fontWeight:
-                      FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
 
                   const Text(
-                    'Activate SOS to notify verified '
-                        'SafeZone users near you.',
+                    'Send an emergency alert to verified '
+                        'SafeZone users nearby.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  GestureDetector(
-                    onTap: _startSOS,
-                    child: Container(
-                      width: 135,
-                      height: 135,
-                      decoration:
-                      BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                        Colors.redAccent,
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                            Colors.redAccent
-                                .withValues(
-                              alpha:
-                              0.35,
-                            ),
-                            blurRadius: 25,
-                            spreadRadius: 6,
-                          ),
-                        ],
-                      ),
-                      alignment:
-                      Alignment.center,
-                      child: const Column(
-                        mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
-                        children: [
-                          Icon(
-                            Icons.sos_rounded,
-                            color:
-                            Colors.white,
-                            size: 46,
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'EMERGENCY',
-                            style: TextStyle(
-                              color:
-                              Colors.white,
-                              fontSize: 11,
-                              fontWeight:
-                              FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                      fontSize: 12,
                     ),
                   ),
 
                   const SizedBox(height: 18),
 
+                  GestureDetector(
+                    onTap: _startSOS,
+                    child: Container(
+                      width: 125,
+                      height: 125,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.redAccent,
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                            Colors.redAccent.withOpacity(0.30),
+                            blurRadius: 24,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Column(
+                        mainAxisAlignment:
+                        MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.sos_rounded,
+                            size: 46,
+                            color: Colors.white,
+                          ),
+
+                          SizedBox(height: 2),
+
+                          Text(
+                            'EMERGENCY',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
                   const Text(
                     'Tap SOS only when assistance is required.',
-                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ==================================================
+            // NEARBY ALERTS
+            // ==================================================
+
+            _sectionTitle(
+              icon: Icons.crisis_alert_outlined,
+              title: 'Nearby Alerts',
+            ),
+
+            const SizedBox(height: 10),
+
+            if (_nearbyIncidents == 0)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: _cardDecoration(),
+                child: const Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor:
+                      Color.fromARGB(35, 76, 175, 80),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: Colors.green,
+                      ),
+                    ),
+
+                    SizedBox(width: 14),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'No active incidents nearby',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+
+                          SizedBox(height: 4),
+
+                          Text(
+                            'No SafeZone emergency alerts '
+                                'within 1 km.',
+                            style: TextStyle(
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              _buildIncidentCard(),
+
+            const SizedBox(height: 24),
+
+            // ==================================================
+            // MAP PREVIEW
+            // ==================================================
+
+            Row(
+              children: [
+                Expanded(
+                  child: _sectionTitle(
+                    icon: Icons.map_outlined,
+                    title: 'Safety Map',
+                  ),
+                ),
+
+                TextButton(
+                  onPressed: _openFullMap,
+                  child: const Text(
+                    'View Full Map',
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _openFullMap,
+              child: Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant,
+                  ),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainer,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _MapBackgroundPainter(),
+                        ),
+                      ),
+
+                      const Center(
+                        child: Icon(
+                          Icons.location_on_rounded,
+                          size: 48,
+                          color: Colors.blueAccent,
+                        ),
+                      ),
+
+                      Positioned(
+                        left: 14,
+                        top: 14,
+                        child: Container(
+                          padding:
+                          const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                            Colors.black.withOpacity(0.65),
+                            borderRadius:
+                            BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'Live Safety Map',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -968,154 +875,284 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // MAP PAGE
+  // SAFETY DATA
+  // Government Data + SafeZone Data
   // ============================================================
 
-  Widget _buildMapPage() {
+  Widget _buildSafetyDataPage() {
     return SafeArea(
-      child: Column(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          30,
+        ),
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              12,
-            ),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Safety Map',
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-                IconButton(
-                  onPressed: _refreshHome,
-                  icon: const Icon(
-                    Icons.refresh_rounded,
-                  ),
-                ),
-              ],
+          const Text(
+            'Safety Data',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
             ),
           ),
 
-          Expanded(
-            child: Stack(
+          const SizedBox(height: 5),
+
+          const Text(
+            'Historical safety information and '
+                'SafeZone community statistics.',
+            style: TextStyle(
+              fontSize: 13,
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // ====================================================
+          // GOVERNMENT
+          // ====================================================
+
+          _dataHeader(
+            icon: Icons.account_balance_outlined,
+            title: 'Government Data',
+            subtitle: 'Source: data.gov.my',
+          ),
+
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
-                Positioned.fill(
-                  child: Container(
-                    margin:
-                    const EdgeInsets.fromLTRB(
-                      16,
-                      0,
-                      16,
-                      16,
-                    ),
-                    decoration:
-                    BoxDecoration(
-                      borderRadius:
-                      BorderRadius.circular(
-                        24,
-                      ),
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainer,
-                    ),
-                    child: ClipRRect(
-                      borderRadius:
-                      BorderRadius.circular(
-                        24,
-                      ),
-                      child: CustomPaint(
-                        painter:
-                        _MapBackgroundPainter(),
-                      ),
-                    ),
+                const Text(
+                  'Historical Crime Overview',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
 
-                const Center(
-                  child: Column(
-                    mainAxisSize:
-                    MainAxisSize.min,
+                const SizedBox(height: 4),
+
+                const Text(
+                  'Historical crime statistics for '
+                      'your selected area.',
+                  style: TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _dataStat(
+                        'Historical Cases',
+                        '$_historicalCases',
+                      ),
+                    ),
+
+                    Expanded(
+                      child: _dataStat(
+                        'Risk Score',
+                        '$_riskScore',
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 22),
+
+                Container(
+                  height: 190,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius:
+                    BorderRadius.circular(18),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                  ),
+                  child: const Column(
+                    mainAxisAlignment:
+                    MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.location_on,
-                        size: 65,
-                        color:
-                        Colors.blueAccent,
+                        Icons.show_chart_rounded,
+                        size: 46,
                       ),
 
                       SizedBox(height: 10),
 
                       Text(
-                        'Map Integration Ready',
+                        'Historical Crime Trend',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                          FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
 
-                      SizedBox(height: 5),
+                      SizedBox(height: 4),
 
                       Text(
-                        'Live map will be connected here.',
+                        'data.gov.my chart will appear here',
+                        style: TextStyle(
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                Positioned(
-                  left: 30,
-                  right: 30,
-                  bottom: 32,
-                  child: Container(
-                    padding:
-                    const EdgeInsets.all(
-                      14,
-                    ),
-                    decoration:
-                    BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surface
-                          .withValues(
-                        alpha: 0.95,
+                const SizedBox(height: 18),
+
+                const Text(
+                  'Crime Categories',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                _categoryRow(
+                  'Violent Crime',
+                  0,
+                ),
+
+                _categoryRow(
+                  'Property Crime',
+                  0,
+                ),
+
+                _categoryRow(
+                  'Other Reported Cases',
+                  0,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          // ====================================================
+          // SAFEZONE
+          // ====================================================
+
+          _dataHeader(
+            icon: Icons.shield_outlined,
+            title: 'SafeZone Community',
+            subtitle:
+            'Live statistics generated by SafeZone',
+          ),
+
+          const SizedBox(height: 12),
+
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics:
+            const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.35,
+            children: [
+              _communityStatCard(
+                icon: Icons.sos_rounded,
+                value: '0',
+                label: 'Total SOS',
+              ),
+
+              _communityStatCard(
+                icon: Icons.warning_amber_rounded,
+                value: '0',
+                label: 'Active Incidents',
+              ),
+
+              _communityStatCard(
+                icon: Icons.check_circle_outline,
+                value: '0',
+                label: 'Resolved',
+              ),
+
+              _communityStatCard(
+                icon:
+                Icons.volunteer_activism_outlined,
+                value: '0',
+                label: 'Users Assisted',
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'SafeZone Activity Trend',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+
+                const Text(
+                  'Community SOS and response activity.',
+                  style: TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius:
+                    BorderRadius.circular(18),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                  ),
+                  child: const Column(
+                    mainAxisAlignment:
+                    MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.insights_rounded,
+                        size: 45,
                       ),
-                      borderRadius:
-                      BorderRadius.circular(
-                        18,
+
+                      SizedBox(height: 10),
+
+                      Text(
+                        'SafeZone Statistics Chart',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment:
-                      MainAxisAlignment
-                          .spaceAround,
-                      children: [
-                        _LegendItem(
-                          color:
-                          Colors.green,
-                          text: 'Low',
+
+                      SizedBox(height: 4),
+
+                      Text(
+                        'Live Supabase data will appear here',
+                        style: TextStyle(
+                          fontSize: 11,
                         ),
-                        _LegendItem(
-                          color:
-                          Colors.orange,
-                          text:
-                          'Moderate',
-                        ),
-                        _LegendItem(
-                          color: Colors.red,
-                          text: 'High',
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1128,79 +1165,96 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ============================================================
   // ACTIVITY
+  // Grab / Uber style flat history.
   // ============================================================
 
   Widget _buildActivityPage() {
+    // Later load actual history from SQLite + Supabase.
+
+    final activities = <Map<String, String>>[];
+
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          30,
+        ),
         children: [
           const Text(
             'Activity',
             style: TextStyle(
-              fontSize: 25,
-              fontWeight:
-              FontWeight.bold,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
 
           const Text(
-            'Your SafeZone activity and SOS history.',
-          ),
-
-          const SizedBox(height: 24),
-
-          _activityTile(
-            icon:
-            Icons.sos_outlined,
-            title: 'SOS History',
-            subtitle:
-            'Emergency alerts you have created.',
-          ),
-
-          const SizedBox(height: 12),
-
-          _activityTile(
-            icon:
-            Icons.volunteer_activism_outlined,
-            title: 'Assistance History',
-            subtitle:
-            'Incidents where you offered help.',
-          ),
-
-          const SizedBox(height: 12),
-
-          _activityTile(
-            icon:
-            Icons.location_history,
-            title: 'Safety History',
-            subtitle:
-            'Previously viewed safety areas.',
-          ),
-
-          const SizedBox(height: 40),
-
-          const Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.history_rounded,
-                  size: 55,
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'No activity yet',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-              ],
+            'Your previous SafeZone requests and assistance.',
+            style: TextStyle(
+              fontSize: 13,
             ),
           ),
+
+          const SizedBox(height: 25),
+
+          if (activities.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 50,
+              ),
+              decoration: _cardDecoration(),
+              child: const Column(
+                children: [
+                  Icon(
+                    Icons.history_rounded,
+                    size: 58,
+                  ),
+
+                  SizedBox(height: 16),
+
+                  Text(
+                    'No activity yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  SizedBox(height: 7),
+
+                  Text(
+                    'Your SOS requests and incidents '
+                        'you responded to will appear here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...activities.map(
+                  (activity) {
+                return _activityCard(
+                  title:
+                  activity['title'] ?? '',
+                  location:
+                  activity['location'] ?? '',
+                  status:
+                  activity['status'] ?? '',
+                  time:
+                  activity['time'] ?? '',
+                  type:
+                  activity['type'] ?? '',
+                );
+              },
+            ),
         ],
       ),
     );
@@ -1213,104 +1267,95 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildProfilePage() {
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          30,
+        ),
         children: [
           const Text(
             'Profile',
             style: TextStyle(
-              fontSize: 25,
-              fontWeight:
-              FontWeight.bold,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 25),
+          const SizedBox(height: 28),
 
           Center(
             child: CircleAvatar(
               radius: 48,
               child: Text(
                 _userName.isNotEmpty
-                    ? _userName[0]
-                    .toUpperCase()
+                    ? _userName[0].toUpperCase()
                     : 'U',
-                style:
-                const TextStyle(
-                  fontSize: 35,
-                  fontWeight:
-                  FontWeight.bold,
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
 
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
 
           Text(
             _userName,
-            textAlign:
-            TextAlign.center,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 21,
-              fontWeight:
-              FontWeight.bold,
+              fontWeight: FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
 
           Text(
             _userEmail,
-            textAlign:
-            TextAlign.center,
+            textAlign: TextAlign.center,
           ),
 
           const SizedBox(height: 30),
 
           _profileOption(
-            icon:
-            Icons.person_outline,
-            title:
-            'Personal Information',
+            icon: Icons.person_outline,
+            title: 'Personal Information',
           ),
 
           _profileOption(
-            icon:
-            Icons.devices_outlined,
-            title:
-            'Registered Device',
+            icon: Icons.devices_outlined,
+            title: 'Registered Device',
           ),
 
           _profileOption(
-            icon:
-            Icons.notifications_outlined,
-            title:
-            'Notifications',
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
           ),
 
           _profileOption(
-            icon:
-            Icons.security_outlined,
-            title:
-            'Privacy & Security',
+            icon: Icons.security_outlined,
+            title: 'Privacy & Security',
           ),
 
           _profileOption(
-            icon:
-            Icons.help_outline,
-            title:
-            'Help & Support',
+            icon: Icons.help_outline_rounded,
+            title: 'Help & Support',
           ),
 
           const SizedBox(height: 22),
 
-          OutlinedButton.icon(
-            onPressed: _logout,
-            icon: const Icon(
-              Icons.logout_rounded,
-            ),
-            label: const Text(
-              'Logout',
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: _logout,
+              icon: const Icon(
+                Icons.logout_rounded,
+              ),
+              label: const Text(
+                'Logout',
+              ),
             ),
           ),
         ],
@@ -1319,12 +1364,69 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // HELPER WIDGETS
+  // FULL MAP
+  // ============================================================
+
+  void _openFullMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Safety Map',
+            ),
+          ),
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _MapBackgroundPainter(),
+                ),
+              ),
+
+              const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.location_on_rounded,
+                      size: 65,
+                      color: Colors.blueAccent,
+                    ),
+
+                    SizedBox(height: 12),
+
+                    Text(
+                      'Live Safety Map',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    SizedBox(height: 5),
+
+                    Text(
+                      'Real map integration will be connected here.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HELPERS
   // ============================================================
 
   Widget _sectionTitle({
-    required String title,
     required IconData icon,
+    required String title,
   }) {
     return Row(
       children: [
@@ -1339,76 +1441,201 @@ class _HomeScreenState extends State<HomeScreen> {
           title,
           style: const TextStyle(
             fontSize: 18,
-            fontWeight:
-            FontWeight.bold,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ],
     );
   }
 
-  BoxDecoration _cardDecoration(
-      BuildContext context,
-      ) {
+  BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      borderRadius:
-      BorderRadius.circular(20),
-      color: Theme.of(context)
-          .colorScheme
-          .surfaceContainer,
+      borderRadius: BorderRadius.circular(20),
+      color:
+      Theme.of(context).colorScheme.surfaceContainer,
       border: Border.all(
-        color: Theme.of(context)
-            .colorScheme
-            .outlineVariant,
+        color:
+        Theme.of(context).colorScheme.outlineVariant,
       ),
     );
   }
 
-  Widget _smallStatCard({
+  Widget _miniRiskStat({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+        ),
+
+        const SizedBox(height: 5),
+
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 2),
+
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _dataHeader({
     required IconData icon,
     required String title,
-    required String value,
     required String subtitle,
   }) {
+    return Row(
+      children: [
+        Container(
+          width: 45,
+          height: 45,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13),
+            color: Theme.of(context)
+                .colorScheme
+                .primary
+                .withOpacity(0.13),
+          ),
+          child: Icon(
+            icon,
+            color:
+            Theme.of(context).colorScheme.primary,
+          ),
+        ),
+
+        const SizedBox(width: 13),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 2),
+
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _dataStat(
+      String label,
+      String value,
+      ) {
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 27,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 3),
+
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _categoryRow(
+      String label,
+      int value,
+      ) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 12,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+              ),
+            ),
+          ),
+
+          Text(
+            '$value',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _communityStatCard({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
     return Container(
-      padding:
-      const EdgeInsets.all(16),
-      decoration:
-      _cardDecoration(context),
+      padding: const EdgeInsets.all(17),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
-            size: 24,
+            size: 25,
           ),
 
-          const SizedBox(height: 12),
+          const Spacer(),
 
           Text(
             value,
             style: const TextStyle(
-              fontSize: 26,
-              fontWeight:
-              FontWeight.bold,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
             ),
           ),
 
-          const SizedBox(height: 3),
-
           Text(
-            title,
-            style: const TextStyle(
-              fontWeight:
-              FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 2),
-
-          Text(
-            subtitle,
+            label,
             style: const TextStyle(
               fontSize: 11,
             ),
@@ -1418,17 +1645,84 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _incidentCard() {
+  Widget _activityCard({
+    required String title,
+    required String location,
+    required String status,
+    required String time,
+    required String type,
+  }) {
     return Container(
-      padding:
-      const EdgeInsets.all(18),
-      decoration:
-      _cardDecoration(context),
+      margin: const EdgeInsets.only(
+        bottom: 12,
+      ),
+      padding: const EdgeInsets.all(17),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          CircleAvatar(
+            child: Icon(
+              type == 'helped'
+                  ? Icons.volunteer_activism
+                  : Icons.sos_rounded,
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  location,
+                  style: const TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  status,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Text(
+            time,
+            style: const TextStyle(
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncidentCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
       child: const Row(
         children: [
           CircleAvatar(
-            backgroundColor:
-            Colors.redAccent,
+            backgroundColor: Colors.redAccent,
             child: Icon(
               Icons.warning_rounded,
               color: Colors.white,
@@ -1445,17 +1739,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Emergency Alert',
                   style: TextStyle(
-                    fontWeight:
-                    FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
 
-                SizedBox(height: 3),
+                SizedBox(height: 4),
 
                 Text(
-                  'Incident information will appear here.',
+                  'Nearby incident information '
+                      'will appear here.',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -1466,67 +1760,49 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _activityTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      decoration:
-      _cardDecoration(context),
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(
-          subtitle,
-        ),
-        trailing:
-        const Icon(
-          Icons.chevron_right,
-        ),
-        onTap: () {},
-      ),
-    );
-  }
-
   Widget _profileOption({
     required IconData icon,
     required String title,
   }) {
     return ListTile(
+      contentPadding:
+      const EdgeInsets.symmetric(
+        horizontal: 4,
+      ),
       leading: Icon(icon),
       title: Text(title),
-      trailing:
-      const Icon(
-        Icons.chevron_right,
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
       ),
       onTap: () {},
     );
   }
 
   Color _riskColor() {
-    switch (
-    _riskLevel.toUpperCase()) {
+    switch (_riskLevel.toUpperCase()) {
       case 'HIGH':
         return Colors.red;
+
       case 'MODERATE':
       case 'MEDIUM':
         return Colors.orange;
+
       default:
         return Colors.green;
     }
   }
 
   String _riskDescription() {
-    switch (
-    _riskLevel.toUpperCase()) {
+    switch (_riskLevel.toUpperCase()) {
       case 'HIGH':
         return 'Higher historical risk detected. '
             'Stay alert and avoid isolated areas.';
+
       case 'MODERATE':
       case 'MEDIUM':
         return 'Moderate historical risk detected. '
             'Remain aware of your surroundings.';
+
       default:
         return 'This area currently shows a relatively '
             'low historical safety risk.';
@@ -1535,72 +1811,24 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ============================================================
-// MAP LEGEND
+// TEMP MAP BACKGROUND
+// Later replace with real Google Map / Flutter Map.
 // ============================================================
 
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String text;
-
-  const _LegendItem({
-    required this.color,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration:
-          BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================
-// TEMPORARY MAP BACKGROUND
-//
-// Later replace ONLY this map area with GoogleMap / FlutterMap.
-// The Home layout does not need to be redesigned.
-// ============================================================
-
-class _MapBackgroundPainter
-    extends CustomPainter {
+class _MapBackgroundPainter extends CustomPainter {
   @override
   void paint(
       Canvas canvas,
       Size size,
       ) {
-    final paint = Paint()
-      ..color =
-      Colors.grey.withValues(
-        alpha: 0.16,
-      )
-      ..strokeWidth = 2;
+    final gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.15)
+      ..strokeWidth = 1.5;
 
     final roadPaint = Paint()
-      ..color =
-      Colors.grey.withValues(
-        alpha: 0.28,
-      )
+      ..color = Colors.grey.withOpacity(0.28)
       ..strokeWidth = 5
-      ..style =
-          PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke;
 
     for (double y = 30;
     y < size.height;
@@ -1608,7 +1836,7 @@ class _MapBackgroundPainter
       canvas.drawLine(
         Offset(0, y),
         Offset(size.width, y),
-        paint,
+        gridPaint,
       );
     }
 
@@ -1618,30 +1846,30 @@ class _MapBackgroundPainter
       canvas.drawLine(
         Offset(x, 0),
         Offset(x, size.height),
-        paint,
+        gridPaint,
       );
     }
 
-    final path = Path()
+    final road = Path()
       ..moveTo(
         0,
-        size.height * 0.75,
+        size.height * 0.72,
       )
       ..quadraticBezierTo(
         size.width * 0.30,
-        size.height * 0.40,
-        size.width * 0.55,
+        size.height * 0.35,
+        size.width * 0.58,
         size.height * 0.58,
       )
       ..quadraticBezierTo(
         size.width * 0.78,
         size.height * 0.75,
         size.width,
-        size.height * 0.30,
+        size.height * 0.28,
       );
 
     canvas.drawPath(
-      path,
+      road,
       roadPaint,
     );
   }
