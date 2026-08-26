@@ -6,6 +6,9 @@ import 'login_screen.dart';
 import 'personal_information_screen.dart';
 import 'privacy_security_screen.dart';
 import 'registered_device_screen.dart';
+import 'sos_screen.dart';
+import 'safety_insights_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -404,22 +407,24 @@ class _HomeScreenState
   // ============================================================
 
   Future<void> _startSOS() async {
+    // ============================================================
+    // CHECK SAFETY SETUP
+    // ============================================================
+
     if (!_setupComplete) {
       await showDialog(
         context: context,
         builder: (dialogContext) {
           return AlertDialog(
             icon: const Icon(
-              Icons
-                  .warning_amber_rounded,
+              Icons.warning_amber_rounded,
               size: 45,
             ),
             title: const Text(
               'Safety Setup Required',
             ),
             content: Text(
-              !_hasPhoneNumber &&
-                  !_hasBoundDevice
+              !_hasPhoneNumber && !_hasBoundDevice
                   ? 'Please add your phone number and bind this device before using SOS.'
                   : !_hasPhoneNumber
                   ? 'Please add your phone number before using SOS.'
@@ -428,21 +433,15 @@ class _HomeScreenState
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(
-                    dialogContext,
-                  );
+                  Navigator.pop(dialogContext);
                 },
-                child:
-                const Text(
+                child: const Text(
                   'Cancel',
                 ),
               ),
-
               FilledButton(
                 onPressed: () {
-                  Navigator.pop(
-                    dialogContext,
-                  );
+                  Navigator.pop(dialogContext);
 
                   if (!_hasPhoneNumber) {
                     _openPersonalInformation();
@@ -450,8 +449,7 @@ class _HomeScreenState
                     _openRegisteredDevice();
                   }
                 },
-                child:
-                const Text(
+                child: const Text(
                   'Complete Setup',
                 ),
               ),
@@ -465,159 +463,15 @@ class _HomeScreenState
 
     if (!mounted) return;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding:
-            const EdgeInsets
-                .fromLTRB(
-              24,
-              20,
-              24,
-              30,
-            ),
-            child: Column(
-              mainAxisSize:
-              MainAxisSize.min,
-              children: [
-                Container(
-                  width: 45,
-                  height: 5,
-                  decoration:
-                  BoxDecoration(
-                    color:
-                    Colors.grey,
-                    borderRadius:
-                    BorderRadius
-                        .circular(
-                      20,
-                    ),
-                  ),
-                ),
+    // ============================================================
+    // OPEN NEW SOS CATEGORY SCREEN
+    // ============================================================
 
-                const SizedBox(
-                  height: 24,
-                ),
-
-                const Icon(
-                  Icons.sos_rounded,
-                  size: 72,
-                  color:
-                  Colors.redAccent,
-                ),
-
-                const SizedBox(
-                  height: 15,
-                ),
-
-                const Text(
-                  'Emergency SOS',
-                  style:
-                  TextStyle(
-                    fontSize: 25,
-                    fontWeight:
-                    FontWeight
-                        .bold,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
-                const Text(
-                  'Are you sure you need emergency assistance?',
-                  textAlign:
-                  TextAlign.center,
-                ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                const Text(
-                  'Your live location will be shared with '
-                      'eligible SafeZone users nearby.',
-                  textAlign:
-                  TextAlign.center,
-                  style:
-                  TextStyle(
-                    fontSize: 12,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 24,
-                ),
-
-                SizedBox(
-                  width:
-                  double.infinity,
-                  height: 52,
-                  child:
-                  ElevatedButton
-                      .icon(
-                    style:
-                    ElevatedButton
-                        .styleFrom(
-                      backgroundColor:
-                      Colors
-                          .redAccent,
-                      foregroundColor:
-                      Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-
-                      ScaffoldMessenger
-                          .of(context)
-                          .showSnackBar(
-                        const SnackBar(
-                          content:
-                          Text(
-                            'SOS backend will be connected later.',
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons
-                          .warning_amber_rounded,
-                    ),
-                    label:
-                    const Text(
-                      'Confirm SOS',
-                      style:
-                      TextStyle(
-                        fontWeight:
-                        FontWeight
-                            .bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      sheetContext,
-                    );
-                  },
-                  child:
-                  const Text(
-                    'Cancel',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SosScreen(),
+      ),
     );
   }
 
@@ -651,7 +505,7 @@ class _HomeScreenState
         index: _currentIndex,
         children: [
           _buildHomePage(),
-          _buildSafetyDataPage(),
+          const SafetyInsightsScreen(),
           _buildActivityPage(),
           _buildProfilePage(),
         ],

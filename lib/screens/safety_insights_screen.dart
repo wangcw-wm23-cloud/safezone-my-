@@ -287,7 +287,7 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.database_outlined, size: 21),
+                  Icon(Icons.storage_outlined, size: 21),
 
                   SizedBox(width: 10),
 

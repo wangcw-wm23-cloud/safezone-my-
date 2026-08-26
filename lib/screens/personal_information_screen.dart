@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PersonalInformationScreen extends StatefulWidget {
@@ -24,9 +25,21 @@ class _PersonalInformationScreenState
   bool _isLoading = true;
   bool _isSaving = false;
 
-  bool _phoneVerified = false;
-
   String _currentEmail = '';
+
+  // Phone saved in database, without +60.
+  // Example:
+  // Database = +60123456789
+  // Stored digits = 123456789
+  String _storedPhoneDigits = '';
+
+  bool _storedPhoneVerified = false;
+
+  // ============================================================
+  // TESTING OTP
+  // ============================================================
+
+  static const String _testingOtp = '123456';
 
   @override
   void initState() {
@@ -36,11 +49,92 @@ class _PersonalInformationScreenState
   }
 
   // ============================================================
+  // PHONE HELPERS
+  // ============================================================
+
+  /// Convert any supported Malaysia number into digits
+  /// after +60.
+  ///
+  /// Examples:
+  /// +60123456789 -> 123456789
+  /// 60123456789  -> 123456789
+  /// 0123456789   -> 123456789
+  /// 123456789    -> 123456789
+  String _normalizeMalaysiaPhoneDigits(String value) {
+    String digits =
+    value.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+
+    // Remove Malaysia country code if pasted.
+    if (digits.startsWith('60')) {
+      digits =
+          digits.substring(2);
+    }
+
+    // Remove local leading zero.
+    if (digits.startsWith('0')) {
+      digits =
+          digits.substring(1);
+    }
+
+    return digits;
+  }
+
+  /// Malaysia mobile number format after +60.
+  ///
+  /// Examples:
+  /// +60123456789
+  /// +601112345678
+  ///
+  /// After +60:
+  /// starts with 1
+  /// followed by 8 or 9 digits.
+  bool _isValidMalaysiaMobile(
+      String value,
+      ) {
+    final digits =
+    _normalizeMalaysiaPhoneDigits(
+      value,
+    );
+
+    return RegExp(
+      r'^1\d{8,9}$',
+    ).hasMatch(
+      digits,
+    );
+  }
+
+  String _fullMalaysiaPhone(
+      String value,
+      ) {
+    final digits =
+    _normalizeMalaysiaPhoneDigits(
+      value,
+    );
+
+    return '+60$digits';
+  }
+
+  bool get _isCurrentPhoneVerified {
+    final current =
+    _normalizeMalaysiaPhoneDigits(
+      _phoneController.text,
+    );
+
+    return _storedPhoneVerified &&
+        current.isNotEmpty &&
+        current == _storedPhoneDigits;
+  }
+
+  // ============================================================
   // LOAD PROFILE
   // ============================================================
 
   Future<void> _loadProfile() async {
-    final user = supabase.auth.currentUser;
+    final user =
+        supabase.auth.currentUser;
 
     if (user == null) {
       if (mounted) {
@@ -53,32 +147,57 @@ class _PersonalInformationScreenState
     }
 
     try {
-      final profile = await supabase
+      final profile =
+      await supabase
           .from('profiles')
           .select(
         'full_name, email, phone_number, phone_verified',
       )
-          .eq('id', user.id)
+          .eq(
+        'id',
+        user.id,
+      )
           .maybeSingle();
 
       if (!mounted) return;
 
+      final databasePhone =
+          profile?['phone_number']
+              ?.toString() ??
+              '';
+
+      final phoneDigits =
+      _normalizeMalaysiaPhoneDigits(
+        databasePhone,
+      );
+
       setState(() {
         _nameController.text =
-            profile?['full_name']?.toString() ??
-                user.userMetadata?['full_name']?.toString() ??
+            profile?['full_name']
+                ?.toString() ??
+                user
+                    .userMetadata?[
+                'full_name']
+                    ?.toString() ??
                 '';
 
         _phoneController.text =
-            profile?['phone_number']?.toString() ?? '';
+            phoneDigits;
 
-        _phoneVerified =
-            profile?['phone_verified'] == true;
+        _storedPhoneDigits =
+            phoneDigits;
+
+        _storedPhoneVerified =
+            profile?['phone_verified'] ==
+                true;
 
         _currentEmail =
             user.email ??
-                profile?['email']?.toString() ??
+                profile?['email']
+                    ?.toString() ??
                 '';
+
+        _isLoading = false;
       });
     } catch (e) {
       debugPrint(
@@ -87,89 +206,81 @@ class _PersonalInformationScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to load profile information.',
+            'Unable to load personal information.',
           ),
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   // ============================================================
-  // SAVE NAME + PHONE
+  // SAVE PERSONAL INFORMATION
   // ============================================================
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!
+        .validate()) {
       return;
     }
 
-    final user = supabase.auth.currentUser;
+    final user =
+        supabase.auth.currentUser;
 
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
 
     final newName =
     _nameController.text.trim();
 
-    final newPhone =
-    _phoneController.text.trim();
+    final newPhoneDigits =
+    _normalizeMalaysiaPhoneDigits(
+      _phoneController.text,
+    );
+
+    final fullPhone =
+        '+60$newPhoneDigits';
+
+    final bool phoneChanged =
+        newPhoneDigits !=
+            _storedPhoneDigits;
 
     setState(() {
       _isSaving = true;
     });
 
     try {
-      final currentProfile = await supabase
-          .from('profiles')
-          .select(
-        'phone_number, phone_verified',
-      )
-          .eq('id', user.id)
-          .maybeSingle();
-
-      final oldPhone =
-          currentProfile?['phone_number']
-              ?.toString()
-              .trim() ??
-              '';
-
-      final bool phoneChanged =
-          oldPhone != newPhone;
-
       await supabase
           .from('profiles')
-          .update({
-        'full_name': newName,
-        'phone_number':
-        newPhone.isEmpty
-            ? null
-            : newPhone,
-        'phone_verified':
-        phoneChanged
-            ? false
-            : _phoneVerified,
-        'updated_at':
-        DateTime.now()
-            .toUtc()
-            .toIso8601String(),
-      })
-          .eq(
+          .update(
+        {
+          'full_name': newName,
+          'phone_number': fullPhone,
+
+          // Changing number means it must
+          // be verified again.
+          'phone_verified':
+          phoneChanged
+              ? false
+              : _storedPhoneVerified,
+
+          'updated_at':
+          DateTime.now()
+              .toUtc()
+              .toIso8601String(),
+        },
+      ).eq(
         'id',
         user.id,
       );
 
-      // Keep Auth metadata synchronized
-      // with public.profiles.
+      // Keep Auth metadata synchronized.
       await supabase.auth.updateUser(
         UserAttributes(
           data: {
@@ -181,32 +292,41 @@ class _PersonalInformationScreenState
       if (!mounted) return;
 
       setState(() {
+        _storedPhoneDigits =
+            newPhoneDigits;
+
         if (phoneChanged) {
-          _phoneVerified = false;
+          _storedPhoneVerified =
+          false;
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Personal information updated successfully.',
-          ),
-        ),
-      );
-    } on AuthException catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
-            e.message,
+            phoneChanged
+                ? 'Information saved. Please verify your new phone number.'
+                : 'Personal information updated successfully.',
           ),
         ),
       );
     } on PostgrestException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message,
+          ),
+        ),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             e.message,
@@ -220,10 +340,11 @@ class _PersonalInformationScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to update personal information.',
+            'Unable to save personal information.',
           ),
         ),
       );
@@ -237,11 +358,139 @@ class _PersonalInformationScreenState
   }
 
   // ============================================================
+  // PHONE VERIFICATION
+  // ============================================================
+
+  Future<void> _verifyPhone() async {
+    final user =
+        supabase.auth.currentUser;
+
+    if (user == null) return;
+
+    final rawPhone =
+    _phoneController.text.trim();
+
+    if (!_isValidMalaysiaMobile(
+      rawPhone,
+    )) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please enter a valid Malaysian mobile number.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    final digits =
+    _normalizeMalaysiaPhoneDigits(
+      rawPhone,
+    );
+
+    final fullPhone =
+        '+60$digits';
+
+    // Prototype:
+    // SMS delivery is simulated.
+    // Verification OTP is fixed at 123456.
+
+    final bool? verified =
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return _PhoneOtpDialog(
+          phoneNumber:
+          fullPhone,
+          testingOtp:
+          _testingOtp,
+        );
+      },
+    );
+
+    if (verified != true) {
+      return;
+    }
+
+    try {
+      await supabase
+          .from('profiles')
+          .update(
+        {
+          'phone_number':
+          fullPhone,
+          'phone_verified':
+          true,
+          'updated_at':
+          DateTime.now()
+              .toUtc()
+              .toIso8601String(),
+        },
+      ).eq(
+        'id',
+        user.id,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _storedPhoneDigits =
+            digits;
+
+        _storedPhoneVerified =
+        true;
+
+        _phoneController.text =
+            digits;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Phone number verified successfully.',
+          ),
+        ),
+      );
+    } on PostgrestException catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint(
+        'PHONE VERIFY ERROR: $e',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to verify phone number.',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
   // CHANGE EMAIL
   // ============================================================
 
   Future<void> _changeEmail() async {
-    final user = supabase.auth.currentUser;
+    final user =
+        supabase.auth.currentUser;
 
     if (user == null) return;
 
@@ -251,7 +500,8 @@ class _PersonalInformationScreenState
       builder: (_) {
         return _ChangeEmailDialog(
           currentEmail:
-          user.email ?? _currentEmail,
+          user.email ??
+              _currentEmail,
         );
       },
     );
@@ -261,9 +511,13 @@ class _PersonalInformationScreenState
       return;
     }
 
-    if (newEmail.toLowerCase() ==
-        user.email?.toLowerCase()) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (newEmail
+        .trim()
+        .toLowerCase() ==
+        user.email
+            ?.toLowerCase()) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'This is already your current email address.',
@@ -277,24 +531,26 @@ class _PersonalInformationScreenState
     try {
       await supabase.auth.updateUser(
         UserAttributes(
-          email: newEmail,
+          email:
+          newEmail.trim(),
         ),
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
-            'Confirmation email sent to $newEmail. '
-                'Please verify the new email address to complete the change.',
+            'Confirmation email sent to ${newEmail.trim()}.',
           ),
         ),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             e.message,
@@ -308,7 +564,8 @@ class _PersonalInformationScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Unable to change email address.',
@@ -339,13 +596,15 @@ class _PersonalInformationScreenState
     try {
       await supabase.auth.updateUser(
         UserAttributes(
-          password: newPassword,
+          password:
+          newPassword,
         ),
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Password changed successfully.',
@@ -355,7 +614,8 @@ class _PersonalInformationScreenState
     } on AuthException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             e.message,
@@ -369,28 +629,15 @@ class _PersonalInformationScreenState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
-            'Unable to change password. Please try again.',
+            'Unable to change password.',
           ),
         ),
       );
     }
-  }
-
-  // ============================================================
-  // PHONE VERIFICATION
-  // ============================================================
-
-  void _verifyPhone() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Phone OTP verification will be connected later.',
-        ),
-      ),
-    );
   }
 
   // ============================================================
@@ -413,7 +660,8 @@ class _PersonalInformationScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title:
+        const Text(
           'Personal Information',
         ),
       ),
@@ -436,13 +684,14 @@ class _PersonalInformationScreenState
               CrossAxisAlignment
                   .stretch,
               children: [
-                // ========================================
-                // PROFILE ICON
-                // ========================================
+                // ==================================================
+                // PROFILE
+                // ==================================================
 
                 Center(
-                  child: CircleAvatar(
-                    radius: 46,
+                  child:
+                  CircleAvatar(
+                    radius: 45,
                     child: Text(
                       _nameController
                           .text
@@ -455,7 +704,8 @@ class _PersonalInformationScreenState
                           : 'U',
                       style:
                       const TextStyle(
-                        fontSize: 33,
+                        fontSize:
+                        32,
                         fontWeight:
                         FontWeight
                             .bold,
@@ -483,7 +733,8 @@ class _PersonalInformationScreenState
                   const TextStyle(
                     fontSize: 20,
                     fontWeight:
-                    FontWeight.bold,
+                    FontWeight
+                        .bold,
                   ),
                 ),
 
@@ -505,32 +756,31 @@ class _PersonalInformationScreenState
                   height: 30,
                 ),
 
-                // ========================================
-                // PERSONAL DETAILS TITLE
-                // ========================================
-
                 const Text(
                   'Personal Details',
-                  style: TextStyle(
+                  style:
+                  TextStyle(
                     fontSize: 18,
                     fontWeight:
-                    FontWeight.bold,
+                    FontWeight
+                        .bold,
                   ),
                 ),
 
                 const SizedBox(
-                  height: 12,
+                  height: 14,
                 ),
 
-                // ========================================
-                // FULL NAME
-                // ========================================
+                // ==================================================
+                // NAME
+                // ==================================================
 
                 TextFormField(
                   controller:
                   _nameController,
                   textInputAction:
-                  TextInputAction.next,
+                  TextInputAction
+                      .next,
                   onChanged: (_) {
                     setState(() {});
                   },
@@ -538,7 +788,8 @@ class _PersonalInformationScreenState
                   const InputDecoration(
                     labelText:
                     'Full Name',
-                    prefixIcon: Icon(
+                    prefixIcon:
+                    Icon(
                       Icons
                           .person_outline,
                     ),
@@ -568,9 +819,9 @@ class _PersonalInformationScreenState
                   height: 18,
                 ),
 
-                // ========================================
-                // PHONE NUMBER
-                // ========================================
+                // ==================================================
+                // MALAYSIA PHONE
+                // ==================================================
 
                 TextFormField(
                   controller:
@@ -579,21 +830,44 @@ class _PersonalInformationScreenState
                   TextInputType.phone,
                   textInputAction:
                   TextInputAction.done,
+
+                  // User only enters digits after +60.
+                  inputFormatters: [
+                    FilteringTextInputFormatter
+                        .digitsOnly,
+
+                    LengthLimitingTextInputFormatter(
+                      10,
+                    ),
+                  ],
+
+                  onChanged: (_) {
+                    setState(() {});
+                  },
+
                   decoration:
                   InputDecoration(
                     labelText:
                     'Phone Number',
+
                     hintText:
-                    '+60123456789',
+                    '123456789',
+
                     prefixIcon:
                     const Icon(
                       Icons
                           .phone_outlined,
                     ),
+
+                    // Fixed Malaysia country code.
+                    prefixText:
+                    '+60 ',
+
                     border:
                     const OutlineInputBorder(),
+
                     suffixIcon:
-                    _phoneVerified
+                    _isCurrentPhoneVerified
                         ? const Tooltip(
                       message:
                       'Verified',
@@ -607,36 +881,19 @@ class _PersonalInformationScreenState
                     )
                         : null,
                   ),
-                  validator: (value) {
-                    final phone =
-                        value?.trim() ??
-                            '';
 
-                    if (phone.isEmpty) {
+                  validator: (value) {
+                    if (value == null ||
+                        value
+                            .trim()
+                            .isEmpty) {
                       return 'Please enter your phone number';
                     }
 
-                    final cleaned =
-                    phone
-                        .replaceAll(
-                      ' ',
-                      '',
-                    )
-                        .replaceAll(
-                      '-',
-                      '',
-                    )
-                        .replaceAll(
-                      '+',
-                      '',
-                    );
-
-                    if (!RegExp(
-                      r'^[0-9]{8,15}$',
-                    ).hasMatch(
-                      cleaned,
+                    if (!_isValidMalaysiaMobile(
+                      value,
                     )) {
-                      return 'Please enter a valid phone number';
+                      return 'Enter a valid Malaysian mobile number';
                     }
 
                     return null;
@@ -647,42 +904,46 @@ class _PersonalInformationScreenState
                   height: 8,
                 ),
 
-                // ========================================
-                // PHONE STATUS
-                // ========================================
+                // ==================================================
+                // PHONE VERIFICATION STATUS
+                // ==================================================
 
                 Row(
                   children: [
                     Icon(
-                      _phoneVerified
+                      _isCurrentPhoneVerified
                           ? Icons
-                          .check_circle_outline
+                          .check_circle
                           : Icons
                           .info_outline,
-                      size: 17,
+                      size: 18,
                       color:
-                      _phoneVerified
+                      _isCurrentPhoneVerified
                           ? Colors.green
                           : null,
                     ),
 
                     const SizedBox(
-                      width: 7,
+                      width: 8,
                     ),
 
                     Expanded(
                       child: Text(
-                        _phoneVerified
+                        _isCurrentPhoneVerified
                             ? 'Phone number verified'
                             : 'Phone number not verified',
                         style:
-                        const TextStyle(
+                        TextStyle(
                           fontSize: 12,
+                          color:
+                          _isCurrentPhoneVerified
+                              ? Colors.green
+                              : null,
                         ),
                       ),
                     ),
 
-                    if (!_phoneVerified)
+                    if (!_isCurrentPhoneVerified)
                       TextButton(
                         onPressed:
                         _verifyPhone,
@@ -694,13 +955,28 @@ class _PersonalInformationScreenState
                   ],
                 ),
 
+                if (!_isCurrentPhoneVerified)
+                  const Padding(
+                    padding:
+                    EdgeInsets.only(
+                      top: 3,
+                    ),
+                    child: Text(
+                      'Malaysia mobile numbers only.',
+                      style:
+                      TextStyle(
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+
                 const SizedBox(
-                  height: 12,
+                  height: 18,
                 ),
 
-                // ========================================
-                // SAVE CHANGES
-                // ========================================
+                // ==================================================
+                // SAVE
+                // ==================================================
 
                 SizedBox(
                   height: 52,
@@ -738,16 +1014,18 @@ class _PersonalInformationScreenState
                   height: 32,
                 ),
 
-                // ========================================
-                // ACCOUNT & SECURITY
-                // ========================================
+                // ==================================================
+                // ACCOUNT SECURITY
+                // ==================================================
 
                 const Text(
                   'Account & Security',
-                  style: TextStyle(
+                  style:
+                  TextStyle(
                     fontSize: 18,
                     fontWeight:
-                    FontWeight.bold,
+                    FontWeight
+                        .bold,
                   ),
                 ),
 
@@ -779,8 +1057,6 @@ class _PersonalInformationScreenState
                   ),
                   child: Column(
                     children: [
-                      // EMAIL
-
                       ListTile(
                         leading:
                         const Icon(
@@ -791,7 +1067,8 @@ class _PersonalInformationScreenState
                         const Text(
                           'Email Address',
                         ),
-                        subtitle: Text(
+                        subtitle:
+                        Text(
                           _currentEmail,
                         ),
                         trailing:
@@ -811,8 +1088,6 @@ class _PersonalInformationScreenState
                             .colorScheme
                             .outlineVariant,
                       ),
-
-                      // PASSWORD
 
                       ListTile(
                         leading:
@@ -841,12 +1116,8 @@ class _PersonalInformationScreenState
                 ),
 
                 const SizedBox(
-                  height: 22,
+                  height: 24,
                 ),
-
-                // ========================================
-                // INFORMATION
-                // ========================================
 
                 Container(
                   padding:
@@ -885,13 +1156,12 @@ class _PersonalInformationScreenState
 
                       Expanded(
                         child: Text(
-                          'SafeZone uses your account information '
-                              'to support emergency identification, '
-                              'device security and safety features.',
+                          'SafeZone uses your verified phone number '
+                              'to support emergency identification and '
+                              'account safety features.',
                           style:
                           TextStyle(
-                            fontSize:
-                            11,
+                            fontSize: 11,
                             height: 1.4,
                           ),
                         ),
@@ -909,10 +1179,270 @@ class _PersonalInformationScreenState
 }
 
 // ============================================================
+// PHONE OTP DIALOG
+// Prototype OTP = 123456
+// ============================================================
+
+class _PhoneOtpDialog
+    extends StatefulWidget {
+  final String phoneNumber;
+  final String testingOtp;
+
+  const _PhoneOtpDialog({
+    required this.phoneNumber,
+    required this.testingOtp,
+  });
+
+  @override
+  State<_PhoneOtpDialog> createState() =>
+      _PhoneOtpDialogState();
+}
+
+class _PhoneOtpDialogState
+    extends State<_PhoneOtpDialog> {
+  final _formKey =
+  GlobalKey<FormState>();
+
+  final TextEditingController
+  _otpController =
+  TextEditingController();
+
+  int _remainingAttempts = 3;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+
+    super.dispose();
+  }
+
+  String _maskPhone(
+      String phone,
+      ) {
+    if (phone.length <= 7) {
+      return phone;
+    }
+
+    final first =
+    phone.substring(
+      0,
+      5,
+    );
+
+    final last =
+    phone.substring(
+      phone.length - 4,
+    );
+
+    return '$first•••$last';
+  }
+
+  void _verifyOtp() {
+    if (!_formKey.currentState!
+        .validate()) {
+      return;
+    }
+
+    final entered =
+    _otpController.text.trim();
+
+    if (entered ==
+        widget.testingOtp) {
+      Navigator.pop(
+        context,
+        true,
+      );
+
+      return;
+    }
+
+    setState(() {
+      _remainingAttempts--;
+    });
+
+    _otpController.clear();
+
+    if (_remainingAttempts <= 0) {
+      Navigator.pop(
+        context,
+        false,
+      );
+
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(
+          'Incorrect verification code. '
+              '$_remainingAttempts attempt(s) remaining.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title:
+      const Text(
+        'Verify Phone Number',
+      ),
+      content:
+      SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize:
+            MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons
+                    .sms_outlined,
+                size: 46,
+              ),
+
+              const SizedBox(
+                height: 16,
+              ),
+
+              const Text(
+                'A 6-digit verification code has been sent to',
+                textAlign:
+                TextAlign.center,
+              ),
+
+              const SizedBox(
+                height: 6,
+              ),
+
+              Text(
+                _maskPhone(
+                  widget.phoneNumber,
+                ),
+                textAlign:
+                TextAlign.center,
+                style:
+                const TextStyle(
+                  fontWeight:
+                  FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(
+                height: 22,
+              ),
+
+              TextFormField(
+                controller:
+                _otpController,
+                autofocus: true,
+                keyboardType:
+                TextInputType.number,
+                textAlign:
+                TextAlign.center,
+                inputFormatters: [
+                  FilteringTextInputFormatter
+                      .digitsOnly,
+                  LengthLimitingTextInputFormatter(
+                    6,
+                  ),
+                ],
+                decoration:
+                const InputDecoration(
+                  labelText:
+                  'Verification Code',
+                  hintText:
+                  '6-digit code',
+                  border:
+                  OutlineInputBorder(),
+                  prefixIcon:
+                  Icon(
+                    Icons
+                        .lock_outline,
+                  ),
+                ),
+                onFieldSubmitted: (_) {
+                  _verifyOtp();
+                },
+                validator: (value) {
+                  if (value == null ||
+                      value.isEmpty) {
+                    return 'Please enter the verification code';
+                  }
+
+                  if (!RegExp(
+                    r'^\d{6}$',
+                  ).hasMatch(
+                    value,
+                  )) {
+                    return 'Enter a 6-digit code';
+                  }
+
+                  return null;
+                },
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              Text(
+                'Attempts remaining: $_remainingAttempts',
+                style:
+                const TextStyle(
+                  fontSize: 11,
+                ),
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              const Text(
+                'For prototype testing, SMS delivery is simulated.',
+                textAlign:
+                TextAlign.center,
+                style:
+                TextStyle(
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(
+              context,
+              false,
+            );
+          },
+          child:
+          const Text(
+            'Cancel',
+          ),
+        ),
+
+        FilledButton(
+          onPressed:
+          _verifyOtp,
+          child:
+          const Text(
+            'Verify',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
 // CHANGE EMAIL DIALOG
-//
-// Dialog owns its own controller.
-// Controller is disposed only when Dialog is really removed.
 // ============================================================
 
 class _ChangeEmailDialog
@@ -954,7 +1484,8 @@ class _ChangeEmailDialogState
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!
+        .validate()) {
       return;
     }
 
@@ -967,7 +1498,8 @@ class _ChangeEmailDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
+      title:
+      const Text(
         'Change Email',
       ),
       content:
@@ -1008,8 +1540,11 @@ class _ChangeEmailDialogState
                 return 'Please enter your new email';
               }
 
-              if (!email.contains('@') ||
-                  !email.contains('.')) {
+              if (!RegExp(
+                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+              ).hasMatch(
+                email,
+              )) {
                 return 'Please enter a valid email';
               }
 
@@ -1025,14 +1560,17 @@ class _ChangeEmailDialogState
               context,
             );
           },
-          child: const Text(
+          child:
+          const Text(
             'Cancel',
           ),
         ),
 
         FilledButton(
-          onPressed: _submit,
-          child: const Text(
+          onPressed:
+          _submit,
+          child:
+          const Text(
             'Continue',
           ),
         ),
@@ -1043,9 +1581,6 @@ class _ChangeEmailDialogState
 
 // ============================================================
 // CHANGE PASSWORD DIALOG
-//
-// This fixes:
-// "TextEditingController was used after being disposed"
 // ============================================================
 
 class _ChangePasswordDialog
@@ -1070,9 +1605,11 @@ class _ChangePasswordDialogState
   _confirmPasswordController =
   TextEditingController();
 
-  bool _obscurePassword = true;
+  bool _obscurePassword =
+  true;
 
-  bool _obscureConfirmPassword = true;
+  bool _obscureConfirmPassword =
+  true;
 
   @override
   void dispose() {
@@ -1084,7 +1621,8 @@ class _ChangePasswordDialogState
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!
+        .validate()) {
       return;
     }
 
@@ -1097,12 +1635,10 @@ class _ChangePasswordDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
+      title:
+      const Text(
         'Change Password',
       ),
-
-      // Important:
-      // prevents keyboard / small screen overflow.
       content:
       SingleChildScrollView(
         child: Form(
@@ -1111,8 +1647,6 @@ class _ChangePasswordDialogState
             mainAxisSize:
             MainAxisSize.min,
             children: [
-              // NEW PASSWORD
-
               TextFormField(
                 controller:
                 _passwordController,
@@ -1166,8 +1700,6 @@ class _ChangePasswordDialogState
                 height: 16,
               ),
 
-              // CONFIRM PASSWORD
-
               TextFormField(
                 controller:
                 _confirmPasswordController,
@@ -1213,7 +1745,8 @@ class _ChangePasswordDialogState
                   }
 
                   if (value !=
-                      _passwordController.text) {
+                      _passwordController
+                          .text) {
                     return 'Passwords do not match';
                   }
 
@@ -1224,7 +1757,6 @@ class _ChangePasswordDialogState
           ),
         ),
       ),
-
       actions: [
         TextButton(
           onPressed: () {
@@ -1232,14 +1764,17 @@ class _ChangePasswordDialogState
               context,
             );
           },
-          child: const Text(
+          child:
+          const Text(
             'Cancel',
           ),
         ),
 
         FilledButton(
-          onPressed: _submit,
-          child: const Text(
+          onPressed:
+          _submit,
+          child:
+          const Text(
             'Update',
           ),
         ),
