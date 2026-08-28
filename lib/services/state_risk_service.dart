@@ -1,22 +1,21 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 // ============================================================
-// STATE RISK MODEL
+// STATE RISK DATA
 // ============================================================
 
 class StateRiskData {
   final String state;
 
-  // Population of this state / FT itself
+  // 2025 population used for UI display
   final int population2025;
 
-  // Population denominator actually used for crime rate.
-  // Example:
-  // Kuala Lumpur + Putrajaya are grouped by the crime dataset.
+  // 2023 population actually used in the crime-rate formula
   final int populationUsedForRate;
 
   final int assaultCases;
@@ -25,18 +24,11 @@ class StateRiskData {
   final double crimeRatePer100k;
 
   final int riskScore;
-
   final String riskLevel;
 
   final int crimeYear;
 
-  // Example:
-  // Putrajaya -> W.P. Kuala Lumpur
-  // Labuan -> Sabah
   final String? groupedWith;
-
-  // True when this state does not have an independent
-  // crime record and inherits the grouped score.
   final bool isInherited;
 
   final DateTime updatedAt;
@@ -56,13 +48,15 @@ class StateRiskData {
     required this.updatedAt,
   });
 
-  int get totalCases => assaultCases + propertyCases;
+  int get totalCases =>
+      assaultCases + propertyCases;
 
   Map<String, dynamic> toMap() {
     return {
       'state': state,
       'population_2025': population2025,
-      'population_used_for_rate': populationUsedForRate,
+      'population_used_for_rate':
+      populationUsedForRate,
       'assault_cases': assaultCases,
       'property_cases': propertyCases,
       'crime_rate': crimeRatePer100k,
@@ -75,22 +69,101 @@ class StateRiskData {
     };
   }
 
-  factory StateRiskData.fromMap(Map<String, dynamic> map) {
+  factory StateRiskData.fromMap(
+      Map<String, dynamic> map,
+      ) {
     return StateRiskData(
       state: map['state'].toString(),
-      population2025: (map['population_2025'] as num).toInt(),
-      populationUsedForRate: (map['population_used_for_rate'] as num).toInt(),
-      assaultCases: (map['assault_cases'] as num).toInt(),
-      propertyCases: (map['property_cases'] as num).toInt(),
-      crimeRatePer100k: (map['crime_rate'] as num).toDouble(),
-      riskScore: (map['risk_score'] as num).toInt(),
-      riskLevel: map['risk_level'].toString(),
-      crimeYear: (map['crime_year'] as num).toInt(),
-      groupedWith: map['grouped_with']?.toString(),
-      isInherited: (map['is_inherited'] as num).toInt() == 1,
-      updatedAt: DateTime.parse(map['updated_at'].toString()),
+      population2025:
+      (map['population_2025'] as num).toInt(),
+      populationUsedForRate:
+      (map['population_used_for_rate'] as num)
+          .toInt(),
+      assaultCases:
+      (map['assault_cases'] as num).toInt(),
+      propertyCases:
+      (map['property_cases'] as num).toInt(),
+      crimeRatePer100k:
+      (map['crime_rate'] as num).toDouble(),
+      riskScore:
+      (map['risk_score'] as num).toInt(),
+      riskLevel:
+      map['risk_level'].toString(),
+      crimeYear:
+      (map['crime_year'] as num).toInt(),
+      groupedWith:
+      map['grouped_with']?.toString(),
+      isInherited:
+      (map['is_inherited'] as num).toInt() == 1,
+      updatedAt: DateTime.parse(
+        map['updated_at'].toString(),
+      ),
     );
   }
+}
+
+// ============================================================
+// POLICE DISTRICT DATA
+// ============================================================
+
+class PoliceDistrictData {
+  final String district;
+
+  final int assaultCases;
+  final int propertyCases;
+
+  const PoliceDistrictData({
+    required this.district,
+    required this.assaultCases,
+    required this.propertyCases,
+  });
+
+  int get totalCases =>
+      assaultCases + propertyCases;
+}
+
+// ============================================================
+// INTERNAL CRIME ROW
+// ============================================================
+
+class _CrimeRow {
+  final String state;
+  final String district;
+  final String category;
+  final int crimes;
+
+  const _CrimeRow({
+    required this.state,
+    required this.district,
+    required this.category,
+    required this.crimes,
+  });
+}
+
+// ============================================================
+// INTERNAL RAW STATE
+// ============================================================
+
+class _RawStateRisk {
+  final String state;
+
+  final int assaultCases;
+  final int propertyCases;
+
+  final int population2023;
+
+  final double crimeRate;
+
+  const _RawStateRisk({
+    required this.state,
+    required this.assaultCases,
+    required this.propertyCases,
+    required this.population2023,
+    required this.crimeRate,
+  });
+
+  int get totalCases =>
+      assaultCases + propertyCases;
 }
 
 // ============================================================
@@ -100,18 +173,21 @@ class StateRiskData {
 class StateRiskService {
   StateRiskService._();
 
-  static final StateRiskService instance = StateRiskService._();
+  static final StateRiskService instance =
+  StateRiskService._();
+
+  // ============================================================
+  // CRIME YEAR
+  // ============================================================
 
   static const int crimeYear = 2023;
 
   // ============================================================
-  // OFFICIAL DOSM 2025 POPULATION BASELINE
+  // 2025 POPULATION
   //
-  // Source:
-  // Current Population Estimates, Malaysia, 2025
+  // Used ONLY for display in the Overview UI.
   //
-  // Official dataset unit = '000
-  // Values below already converted to actual people.
+  // Crime rate uses 2023 population instead.
   // ============================================================
 
   static const Map<String, int> population2025 = {
@@ -133,7 +209,34 @@ class StateRiskService {
     'W.P. Putrajaya': 120800,
   };
 
+  // ============================================================
+  // OFFICIAL DATA SOURCES
+  // ============================================================
+
+  static const String _crimeCsvUrl =
+      'https://storage.data.gov.my/'
+      'publicsafety/crime_district.csv';
+
+  static const String _populationCsvUrl =
+      'https://storage.dosm.gov.my/'
+      'population/population_state.csv';
+
+  // ============================================================
+  // DATABASE
+  // ============================================================
+
   Database? _database;
+
+  // Version 3 forces any old percentile cache to be removed.
+  static const int _databaseVersion = 3;
+
+  // ============================================================
+  // MEMORY CACHE
+  // ============================================================
+
+  List<_CrimeRow>? _memoryCrimeRows;
+
+  Map<String, int>? _memoryPopulation2023;
 
   // ============================================================
   // DATABASE
@@ -144,30 +247,43 @@ class StateRiskService {
       return _database!;
     }
 
-    final databasePath = await getDatabasesPath();
+    final databasePath =
+    await getDatabasesPath();
 
-    final path = p.join(databasePath, 'safezone_state_risk.db');
+    final path = p.join(
+      databasePath,
+      'safezone_state_risk.db',
+    );
 
     _database = await openDatabase(
       path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE state_risk_cache (
-            state TEXT PRIMARY KEY,
-            population_2025 INTEGER NOT NULL,
-            population_used_for_rate INTEGER NOT NULL,
-            assault_cases INTEGER NOT NULL,
-            property_cases INTEGER NOT NULL,
-            crime_rate REAL NOT NULL,
-            risk_score INTEGER NOT NULL,
-            risk_level TEXT NOT NULL,
-            crime_year INTEGER NOT NULL,
-            grouped_with TEXT,
-            is_inherited INTEGER NOT NULL DEFAULT 0,
-            updated_at TEXT NOT NULL
-          )
-          ''');
+      version: _databaseVersion,
+
+      onCreate: (
+          db,
+          version,
+          ) async {
+        await _createRiskTable(
+          db,
+        );
+      },
+
+      onUpgrade: (
+          db,
+          oldVersion,
+          newVersion,
+          ) async {
+        if (oldVersion < 3) {
+          await db.execute(
+            '''
+            DROP TABLE IF EXISTS state_risk_cache
+            ''',
+          );
+
+          await _createRiskTable(
+            db,
+          );
+        }
       },
     );
 
@@ -175,26 +291,78 @@ class StateRiskService {
   }
 
   // ============================================================
-  // PUBLIC LOAD
+  // CREATE TABLE
   // ============================================================
 
-  Future<List<StateRiskData>> loadStateRisks({bool refresh = false}) async {
+  Future<void> _createRiskTable(
+      Database db,
+      ) async {
+    await db.execute(
+      '''
+      CREATE TABLE state_risk_cache (
+        state TEXT PRIMARY KEY,
+        population_2025 INTEGER NOT NULL,
+        population_used_for_rate INTEGER NOT NULL,
+        assault_cases INTEGER NOT NULL,
+        property_cases INTEGER NOT NULL,
+        crime_rate REAL NOT NULL,
+        risk_score INTEGER NOT NULL,
+        risk_level TEXT NOT NULL,
+        crime_year INTEGER NOT NULL,
+        grouped_with TEXT,
+        is_inherited INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      )
+      ''',
+    );
+  }
+
+  // ============================================================
+  // LOAD STATE RISKS
+  // ============================================================
+
+  Future<List<StateRiskData>> loadStateRisks({
+    bool refresh = false,
+  }) async {
+    // ==========================================================
+    // SQLITE CACHE FIRST
+    // ==========================================================
+
     if (!refresh) {
-      final cached = await _readCache();
+      final cached =
+      await _readStateCache();
 
       if (cached.isNotEmpty) {
         return cached;
       }
     }
 
-    try {
-      final fresh = await _fetchAndCalculate();
+    // ==========================================================
+    // ONLINE
+    // ==========================================================
 
-      await _saveCache(fresh);
+    try {
+      final fresh =
+      await _calculateStateRisks(
+        forceRefresh: refresh,
+      );
+
+      await _saveStateCache(
+        fresh,
+      );
 
       return fresh;
     } catch (e) {
-      final cached = await _readCache();
+      debugPrint(
+        'STATE RISK ONLINE ERROR: $e',
+      );
+
+      // ========================================================
+      // FALLBACK TO LOCAL CACHE
+      // ========================================================
+
+      final cached =
+      await _readStateCache();
 
       if (cached.isNotEmpty) {
         return cached;
@@ -205,289 +373,607 @@ class StateRiskService {
   }
 
   // ============================================================
-  // DATA.GOV.MY
-  //
-  // We request:
-  // - 2023
-  // - state totals
-  // - type = all
-  //
-  // This returns assault + property totals.
+  // LOAD POLICE DISTRICT RANKING
   // ============================================================
 
-  Future<List<StateRiskData>> _fetchAndCalculate() async {
-    final uri = Uri.https('api.data.gov.my', '/data-catalogue', {
-      'id': 'crime_district',
-      'filter': '$crimeYear-01-01@date,All@district,all@type',
-      'limit': '100',
-    });
+  Future<List<PoliceDistrictData>>
+  loadPoliceDistrictRanking(
+      String state, {
+        bool refresh = false,
+      }) async {
+    final rows =
+    await _fetchCrimeRows(
+      forceRefresh: refresh,
+    );
 
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
+    // ==========================================================
+    // PDRM DATA GROUPING
+    //
+    // Putrajaya -> KL
+    // Labuan     -> Sabah
+    // ==========================================================
 
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Unable to load crime data. '
-        'HTTP ${response.statusCode}',
+    String crimeState = state;
+
+    if (state == 'W.P. Putrajaya') {
+      crimeState =
+      'W.P. Kuala Lumpur';
+    }
+
+    if (state == 'W.P. Labuan') {
+      crimeState = 'Sabah';
+    }
+
+    final Map<String, Map<String, int>>
+    grouped = {};
+
+    for (final row in rows) {
+      if (row.state != crimeState) {
+        continue;
+      }
+
+      // Do not display the "All" state-total row.
+      if (row.district.toLowerCase() ==
+          'all') {
+        continue;
+      }
+
+      grouped.putIfAbsent(
+        row.district,
+            () => {
+          'assault': 0,
+          'property': 0,
+        },
       );
-    }
 
-    final decoded = jsonDecode(response.body);
-
-    if (decoded is! List) {
-      throw Exception('Unexpected data.gov.my response.');
-    }
-
-    // ==========================================================
-    // state -> category -> cases
-    // ==========================================================
-
-    final Map<String, Map<String, int>> crimeByState = {};
-
-    for (final raw in decoded) {
-      if (raw is! Map) {
-        continue;
+      if (row.category == 'assault') {
+        grouped[row.district]!['assault'] =
+            (grouped[row.district]!['assault'] ??
+                0) +
+                row.crimes;
       }
 
-      final row = Map<String, dynamic>.from(raw);
-
-      final state = row['state']?.toString();
-
-      final category = row['category']?.toString();
-
-      final crimesRaw = row['crimes'];
-
-      if (state == null || category == null || crimesRaw == null) {
-        continue;
-      }
-
-      if (state == 'Malaysia') {
-        continue;
-      }
-
-      final crimes = crimesRaw is num
-          ? crimesRaw.toInt()
-          : int.tryParse(crimesRaw.toString()) ?? 0;
-
-      crimeByState.putIfAbsent(state, () => {'assault': 0, 'property': 0});
-
-      if (category == 'assault' || category == 'property') {
-        crimeByState[state]![category] = crimes;
+      if (row.category == 'property') {
+        grouped[row.district]!['property'] =
+            (grouped[row.district]!['property'] ??
+                0) +
+                row.crimes;
       }
     }
 
+    final result =
+    grouped.entries.map(
+          (
+          entry,
+          ) {
+        return PoliceDistrictData(
+          district: entry.key,
+          assaultCases:
+          entry.value['assault'] ?? 0,
+          propertyCases:
+          entry.value['property'] ?? 0,
+        );
+      },
+    ).toList();
+
+    result.sort(
+          (
+          a,
+          b,
+          ) =>
+          b.totalCases.compareTo(
+            a.totalCases,
+          ),
+    );
+
+    return result;
+  }
+
+  // ============================================================
+  // CALCULATE STATE RISKS
+  // ============================================================
+
+  Future<List<StateRiskData>>
+  _calculateStateRisks({
+    required bool forceRefresh,
+  }) async {
     // ==========================================================
-    // DIRECT COMPARABLE STATE GROUPS
-    //
-    // Putrajaya is included in KL crime data.
-    // Labuan is included in Sabah crime data.
-    //
-    // Therefore:
-    //
-    // KL crime rate denominator
-    // = KL population + Putrajaya population
-    //
-    // Sabah crime rate denominator
-    // = Sabah population + Labuan population
+    // 1. LOAD 2023 CRIME
     // ==========================================================
 
-    final directStates = population2025.keys.where((state) {
-      return state != 'W.P. Putrajaya' && state != 'W.P. Labuan';
-    }).toList();
+    final crimeRows =
+    await _fetchCrimeRows(
+      forceRefresh: forceRefresh,
+    );
 
-    final List<_RawRisk> rawRisks = [];
+    // ==========================================================
+    // 2. LOAD 2023 POPULATION
+    // ==========================================================
+
+    final population2023 =
+    await _fetchPopulation2023(
+      forceRefresh: forceRefresh,
+    );
+
+    // ==========================================================
+    // 3. GROUP CRIME BY STATE
+    // ==========================================================
+
+    final Map<String, Map<String, int>>
+    stateCrime = {};
+
+    for (final row in crimeRows) {
+      if (row.state.toLowerCase() ==
+          'malaysia') {
+        continue;
+      }
+
+      // ========================================================
+      // Ignore "All" district because we calculate from the
+      // actual district rows.
+      //
+      // Otherwise:
+      //
+      // district cases + state total cases
+      //
+      // would double-count the same crime.
+      // ========================================================
+
+      if (row.district.toLowerCase() ==
+          'all') {
+        continue;
+      }
+
+      stateCrime.putIfAbsent(
+        row.state,
+            () => {
+          'assault': 0,
+          'property': 0,
+        },
+      );
+
+      if (row.category == 'assault') {
+        stateCrime[row.state]!['assault'] =
+            (stateCrime[row.state]!['assault'] ??
+                0) +
+                row.crimes;
+      }
+
+      if (row.category == 'property') {
+        stateCrime[row.state]!['property'] =
+            (stateCrime[row.state]!['property'] ??
+                0) +
+                row.crimes;
+      }
+    }
+
+    // ==========================================================
+    // 4. DIRECT CRIME GROUPS
+    //
+    // Putrajaya is inside KL crime data.
+    // Labuan is inside Sabah crime data.
+    // ==========================================================
+
+    final directStates =
+    population2025.keys.where(
+          (
+          state,
+          ) =>
+      state != 'W.P. Putrajaya' &&
+          state != 'W.P. Labuan',
+    );
+
+    final rawRisks =
+    <_RawStateRisk>[];
+
+    // ==========================================================
+    // 5. CALCULATE CRIME RATE PER 100,000
+    // ==========================================================
 
     for (final state in directStates) {
-      final categoryData = crimeByState[state];
+      final crime =
+      stateCrime[state];
 
-      if (categoryData == null) {
+      if (crime == null) {
+        debugPrint(
+          'NO CRIME DATA FOR: $state',
+        );
+
         continue;
       }
 
-      final assault = categoryData['assault'] ?? 0;
+      final assault =
+          crime['assault'] ?? 0;
 
-      final property = categoryData['property'] ?? 0;
+      final property =
+          crime['property'] ?? 0;
 
-      final total = assault + property;
+      final totalCases =
+          assault + property;
 
-      final populationForRate = _populationForCrimeGroup(state);
+      final populationUsed =
+      _populationForCrimeGroup2023(
+        state,
+        population2023,
+      );
 
-      if (populationForRate <= 0) {
+      if (populationUsed <= 0) {
+        debugPrint(
+          'NO POPULATION DATA FOR: $state',
+        );
+
         continue;
       }
 
-      final rate = total / populationForRate * 100000;
+      // ========================================================
+      // CRIME RATE
+      //
+      // cases
+      // -----
+      // population
+      //
+      // × 100,000
+      // ========================================================
+
+      final crimeRate =
+          totalCases /
+              populationUsed *
+              100000;
 
       rawRisks.add(
-        _RawRisk(
+        _RawStateRisk(
           state: state,
-          populationForRate: populationForRate,
           assaultCases: assault,
           propertyCases: property,
-          crimeRate: rate,
+          population2023:
+          populationUsed,
+          crimeRate: crimeRate,
         ),
       );
     }
 
-    if (rawRisks.isEmpty) {
-      throw Exception('No state crime records returned.');
+    if (rawRisks.length < 10) {
+      throw Exception(
+        'Insufficient state data. '
+            'Only ${rawRisks.length} comparable crime regions found.',
+      );
     }
 
     // ==========================================================
-    // PERCENTILE NORMALISATION
+    // 6. MALAYSIA NATIONAL BENCHMARK
     //
-    // Lowest crime rate -> lower score
-    // Highest crime rate -> higher score
+    // Weighted national rate:
     //
-    // Score range will normally be around 0-100.
+    // TOTAL CASES
+    // -----------
+    // TOTAL POPULATION
+    //
+    // × 100,000
     // ==========================================================
 
-    final sortedRates = rawRisks.map((item) => item.crimeRate).toList()..sort();
+    int malaysiaCrimeCases = 0;
+    int malaysiaPopulation = 0;
 
-    final now = DateTime.now();
+    for (final state in rawRisks) {
+      malaysiaCrimeCases +=
+          state.totalCases;
 
-    final List<StateRiskData> results = [];
+      malaysiaPopulation +=
+          state.population2023;
+    }
+
+    if (malaysiaPopulation <= 0) {
+      throw Exception(
+        'Invalid Malaysia population.',
+      );
+    }
+
+    final malaysiaCrimeRate =
+        malaysiaCrimeCases /
+            malaysiaPopulation *
+            100000;
+
+    if (malaysiaCrimeRate <= 0) {
+      throw Exception(
+        'Invalid Malaysia crime benchmark.',
+      );
+    }
+
+    // ==========================================================
+    // DEBUG NATIONAL RESULT
+    // ==========================================================
+
+    debugPrint(
+      '============================================',
+    );
+
+    debugPrint(
+      'MALAYSIA CRIME BENCHMARK',
+    );
+
+    debugPrint(
+      'Crime Cases: $malaysiaCrimeCases',
+    );
+
+    debugPrint(
+      'Population: $malaysiaPopulation',
+    );
+
+    debugPrint(
+      'Crime Rate: '
+          '${malaysiaCrimeRate.toStringAsFixed(2)} / 100k',
+    );
+
+    debugPrint(
+      '============================================',
+    );
+
+    final now =
+    DateTime.now();
+
+    final results =
+    <StateRiskData>[];
+
+    // ==========================================================
+    // 7. STATE RISK SCORE
+    // ==========================================================
 
     for (final raw in rawRisks) {
-      final score = _percentileScore(raw.crimeRate, sortedRates);
+      // ========================================================
+      // EXAMPLE:
+      //
+      // Malaysia rate = 150
+      // State rate    = 150
+      //
+      // ratio = 1.0
+      // score = 50
+      //
+      //
+      // State rate = 180
+      //
+      // ratio = 1.2
+      // score = 60
+      // ========================================================
+
+      final riskRatio =
+          raw.crimeRate /
+              malaysiaCrimeRate;
+
+      final score =
+      _benchmarkRiskScore(
+        riskRatio,
+      );
+
+      final level =
+      _riskLevel(
+        score,
+      );
+
+      debugPrint(
+        '${raw.state}: '
+            'Cases ${raw.totalCases} | '
+            'Population ${raw.population2023} | '
+            'Rate ${raw.crimeRate.toStringAsFixed(2)} | '
+            'Ratio ${riskRatio.toStringAsFixed(2)} | '
+            'Score $score | '
+            '$level',
+      );
 
       results.add(
         StateRiskData(
           state: raw.state,
-          population2025: population2025[raw.state]!,
-          populationUsedForRate: raw.populationForRate,
-          assaultCases: raw.assaultCases,
-          propertyCases: raw.propertyCases,
-          crimeRatePer100k: raw.crimeRate,
-          riskScore: score,
-          riskLevel: _riskLevel(score),
-          crimeYear: crimeYear,
-          groupedWith: _groupedWith(raw.state),
-          isInherited: false,
-          updatedAt: now,
+
+          // 2025 is just for UI display
+          population2025:
+          population2025[raw.state]!,
+
+          // 2023 used for formula
+          populationUsedForRate:
+          raw.population2023,
+
+          assaultCases:
+          raw.assaultCases,
+
+          propertyCases:
+          raw.propertyCases,
+
+          crimeRatePer100k:
+          raw.crimeRate,
+
+          riskScore:
+          score,
+
+          riskLevel:
+          level,
+
+          crimeYear:
+          crimeYear,
+
+          groupedWith:
+          _groupedWith(
+            raw.state,
+          ),
+
+          isInherited:
+          false,
+
+          updatedAt:
+          now,
         ),
       );
     }
 
     // ==========================================================
-    // PUTRAJAYA
+    // 8. PUTRAJAYA
     //
-    // Crime data is included under W.P. Kuala Lumpur.
-    // It therefore inherits the KL grouped risk score.
+    // Official crime data is inside Kuala Lumpur.
     // ==========================================================
 
-    final kl = results
-        .where((item) => item.state == 'W.P. Kuala Lumpur')
-        .firstOrNull;
+    StateRiskData? kl;
+
+    for (final item in results) {
+      if (item.state ==
+          'W.P. Kuala Lumpur') {
+        kl = item;
+        break;
+      }
+    }
 
     if (kl != null) {
       results.add(
         StateRiskData(
-          state: 'W.P. Putrajaya',
-          population2025: population2025['W.P. Putrajaya']!,
-          populationUsedForRate: kl.populationUsedForRate,
-          assaultCases: kl.assaultCases,
-          propertyCases: kl.propertyCases,
-          crimeRatePer100k: kl.crimeRatePer100k,
-          riskScore: kl.riskScore,
-          riskLevel: kl.riskLevel,
-          crimeYear: crimeYear,
-          groupedWith: 'W.P. Kuala Lumpur',
-          isInherited: true,
-          updatedAt: now,
+          state:
+          'W.P. Putrajaya',
+
+          population2025:
+          population2025[
+          'W.P. Putrajaya']!,
+
+          populationUsedForRate:
+          kl.populationUsedForRate,
+
+          assaultCases:
+          kl.assaultCases,
+
+          propertyCases:
+          kl.propertyCases,
+
+          crimeRatePer100k:
+          kl.crimeRatePer100k,
+
+          riskScore:
+          kl.riskScore,
+
+          riskLevel:
+          kl.riskLevel,
+
+          crimeYear:
+          crimeYear,
+
+          groupedWith:
+          'W.P. Kuala Lumpur',
+
+          isInherited:
+          true,
+
+          updatedAt:
+          now,
         ),
       );
     }
 
     // ==========================================================
-    // LABUAN
+    // 9. LABUAN
     //
-    // Crime data is included under Sabah.
+    // Official crime data is inside Sabah.
     // ==========================================================
 
-    final sabah = results.where((item) => item.state == 'Sabah').firstOrNull;
+    StateRiskData? sabah;
+
+    for (final item in results) {
+      if (item.state == 'Sabah') {
+        sabah = item;
+        break;
+      }
+    }
 
     if (sabah != null) {
       results.add(
         StateRiskData(
-          state: 'W.P. Labuan',
-          population2025: population2025['W.P. Labuan']!,
-          populationUsedForRate: sabah.populationUsedForRate,
-          assaultCases: sabah.assaultCases,
-          propertyCases: sabah.propertyCases,
-          crimeRatePer100k: sabah.crimeRatePer100k,
-          riskScore: sabah.riskScore,
-          riskLevel: sabah.riskLevel,
-          crimeYear: crimeYear,
-          groupedWith: 'Sabah',
-          isInherited: true,
-          updatedAt: now,
+          state:
+          'W.P. Labuan',
+
+          population2025:
+          population2025[
+          'W.P. Labuan']!,
+
+          populationUsedForRate:
+          sabah.populationUsedForRate,
+
+          assaultCases:
+          sabah.assaultCases,
+
+          propertyCases:
+          sabah.propertyCases,
+
+          crimeRatePer100k:
+          sabah.crimeRatePer100k,
+
+          riskScore:
+          sabah.riskScore,
+
+          riskLevel:
+          sabah.riskLevel,
+
+          crimeYear:
+          crimeYear,
+
+          groupedWith:
+          'Sabah',
+
+          isInherited:
+          true,
+
+          updatedAt:
+          now,
         ),
       );
     }
 
-    results.sort((a, b) => a.state.compareTo(b.state));
+    // ==========================================================
+    // SORT
+    // ==========================================================
+
+    results.sort(
+          (
+          a,
+          b,
+          ) =>
+          a.state.compareTo(
+            b.state,
+          ),
+    );
 
     return results;
   }
 
   // ============================================================
-  // POPULATION USED FOR CRIME RATE
+  // BENCHMARK RISK SCORE
+  //
+  // Malaysia average = 50
+  //
+  // 50% national average  = 25
+  //
+  // 100% national average = 50
+  //
+  // 120% national average = 60
+  //
+  // 160% national average = 80
+  //
+  // 200% national average = 100
   // ============================================================
 
-  int _populationForCrimeGroup(String state) {
-    if (state == 'W.P. Kuala Lumpur') {
-      return population2025['W.P. Kuala Lumpur']! +
-          population2025['W.P. Putrajaya']!;
-    }
+  int _benchmarkRiskScore(
+      double riskRatio,
+      ) {
+    final rawScore =
+        riskRatio * 50;
 
-    if (state == 'Sabah') {
-      return population2025['Sabah']! + population2025['W.P. Labuan']!;
-    }
-
-    return population2025[state] ?? 0;
+    return rawScore
+        .round()
+        .clamp(
+      0,
+      100,
+    );
   }
 
   // ============================================================
-  // GROUPING NOTE
+  // RISK LEVEL
   // ============================================================
 
-  String? _groupedWith(String state) {
-    if (state == 'W.P. Kuala Lumpur') {
-      return 'W.P. Putrajaya';
-    }
-
-    if (state == 'Sabah') {
-      return 'W.P. Labuan';
-    }
-
-    return null;
-  }
-
-  // ============================================================
-  // RISK SCORE
-  // ============================================================
-
-  int _percentileScore(double rate, List<double> sortedRates) {
-    if (sortedRates.isEmpty) {
-      return 0;
-    }
-
-    final first = sortedRates.indexWhere((value) => value == rate);
-
-    final last = sortedRates.lastIndexWhere((value) => value == rate);
-
-    if (first == -1 || last == -1) {
-      return 0;
-    }
-
-    final averageIndex = (first + last) / 2.0;
-
-    final percentile = ((averageIndex + 0.5) / sortedRates.length) * 100;
-
-    return percentile.round().clamp(0, 100);
-  }
-
-  String _riskLevel(int score) {
+  String _riskLevel(
+      int score,
+      ) {
     if (score <= 29) {
       return 'LOW';
     }
@@ -504,74 +990,814 @@ class StateRiskService {
   }
 
   // ============================================================
-  // SAVE CACHE
+  // FETCH OFFICIAL 2023 CRIME CSV
   // ============================================================
 
-  Future<void> _saveCache(List<StateRiskData> data) async {
-    final db = await _getDatabase();
+  Future<List<_CrimeRow>>
+  _fetchCrimeRows({
+    required bool forceRefresh,
+  }) async {
+    // ==========================================================
+    // MEMORY CACHE
+    // ==========================================================
 
-    final batch = db.batch();
+    if (!forceRefresh &&
+        _memoryCrimeRows != null &&
+        _memoryCrimeRows!.isNotEmpty) {
+      return _memoryCrimeRows!;
+    }
 
-    batch.delete('state_risk_cache');
+    // ==========================================================
+    // DOWNLOAD OFFICIAL PDRM / DATA.GOV.MY CSV
+    // ==========================================================
+
+    final response =
+    await http
+        .get(
+      Uri.parse(
+        _crimeCsvUrl,
+      ),
+    )
+        .timeout(
+      const Duration(
+        seconds: 30,
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Crime CSV HTTP '
+            '${response.statusCode}',
+      );
+    }
+
+    final csvText =
+    utf8.decode(
+      response.bodyBytes,
+    );
+
+    final lines =
+    const LineSplitter().convert(
+      csvText,
+    );
+
+    if (lines.length < 2) {
+      throw Exception(
+        'Crime CSV is empty.',
+      );
+    }
+
+    // ==========================================================
+    // HEADER
+    // ==========================================================
+
+    final header =
+    _splitCsvLine(
+      lines.first,
+    ).map(
+          (
+          value,
+          ) =>
+          value
+              .replaceAll(
+            '\ufeff',
+            '',
+          )
+              .trim()
+              .toLowerCase(),
+    ).toList();
+
+    final dateIndex =
+    header.indexOf(
+      'date',
+    );
+
+    final stateIndex =
+    header.indexOf(
+      'state',
+    );
+
+    final districtIndex =
+    header.indexOf(
+      'district',
+    );
+
+    final categoryIndex =
+    header.indexOf(
+      'category',
+    );
+
+    final typeIndex =
+    header.indexOf(
+      'type',
+    );
+
+    final crimesIndex =
+    header.indexOf(
+      'crimes',
+    );
+
+    if (dateIndex == -1 ||
+        stateIndex == -1 ||
+        districtIndex == -1 ||
+        categoryIndex == -1 ||
+        typeIndex == -1 ||
+        crimesIndex == -1) {
+      throw Exception(
+        'Unexpected crime CSV columns.',
+      );
+    }
+
+    // ==========================================================
+    // We first try to use type = "all".
+    //
+    // This prevents:
+    //
+    // all + robbery + theft + ...
+    //
+    // from being double-counted.
+    // ==========================================================
+
+    final allTypeRows =
+    <_CrimeRow>[];
+
+    final detailTypeRows =
+    <_CrimeRow>[];
+
+    for (int i = 1;
+    i < lines.length;
+    i++) {
+      final line =
+      lines[i].trim();
+
+      if (line.isEmpty) {
+        continue;
+      }
+
+      final columns =
+      _splitCsvLine(
+        line,
+      );
+
+      final maxIndex = [
+        dateIndex,
+        stateIndex,
+        districtIndex,
+        categoryIndex,
+        typeIndex,
+        crimesIndex,
+      ].reduce(
+            (
+            a,
+            b,
+            ) =>
+        a > b ? a : b,
+      );
+
+      if (columns.length <= maxIndex) {
+        continue;
+      }
+
+      final date =
+      columns[dateIndex].trim();
+
+      if (date != '2023-01-01') {
+        continue;
+      }
+
+      final state =
+      _normalizeStateName(
+        columns[stateIndex],
+      );
+
+      final district =
+      columns[districtIndex]
+          .trim();
+
+      final category =
+      columns[categoryIndex]
+          .trim()
+          .toLowerCase();
+
+      final type =
+      columns[typeIndex]
+          .trim()
+          .toLowerCase();
+
+      final crimes =
+          int.tryParse(
+            columns[crimesIndex]
+                .trim(),
+          ) ??
+              0;
+
+      if (state.isEmpty ||
+          district.isEmpty) {
+        continue;
+      }
+
+      if (category != 'assault' &&
+          category != 'property') {
+        continue;
+      }
+
+      final item =
+      _CrimeRow(
+        state: state,
+        district: district,
+        category: category,
+        crimes: crimes,
+      );
+
+      if (type == 'all') {
+        allTypeRows.add(
+          item,
+        );
+      } else {
+        detailTypeRows.add(
+          item,
+        );
+      }
+    }
+
+    // ==========================================================
+    // PREFERRED:
+    // category totals where type = all
+    //
+    // FALLBACK:
+    // add individual crime types if the dataset format changes.
+    // ==========================================================
+
+    final result =
+    allTypeRows.isNotEmpty
+        ? allTypeRows
+        : detailTypeRows;
+
+    if (result.isEmpty) {
+      throw Exception(
+        'No usable 2023 crime rows returned.',
+      );
+    }
+
+    debugPrint(
+      '2023 CRIME ROWS LOADED: '
+          '${result.length}',
+    );
+
+    _memoryCrimeRows =
+        result;
+
+    return result;
+  }
+
+  // ============================================================
+  // FETCH OFFICIAL 2023 POPULATION CSV
+  //
+  // population_state does NOT support OpenAPI.
+  //
+  // Official CSV:
+  //
+  // storage.dosm.gov.my/population/population_state.csv
+  //
+  // Population is in thousands ('000).
+  // ============================================================
+
+  Future<Map<String, int>>
+  _fetchPopulation2023({
+    required bool forceRefresh,
+  }) async {
+    // ==========================================================
+    // MEMORY CACHE
+    // ==========================================================
+
+    if (!forceRefresh &&
+        _memoryPopulation2023 != null &&
+        _memoryPopulation2023!.isNotEmpty) {
+      return _memoryPopulation2023!;
+    }
+
+    // ==========================================================
+    // DOWNLOAD OFFICIAL DOSM CSV
+    // ==========================================================
+
+    final response =
+    await http
+        .get(
+      Uri.parse(
+        _populationCsvUrl,
+      ),
+    )
+        .timeout(
+      const Duration(
+        seconds: 40,
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Population CSV HTTP '
+            '${response.statusCode}',
+      );
+    }
+
+    final csvText =
+    utf8.decode(
+      response.bodyBytes,
+    );
+
+    final lines =
+    const LineSplitter().convert(
+      csvText,
+    );
+
+    if (lines.length < 2) {
+      throw Exception(
+        'Population CSV is empty.',
+      );
+    }
+
+    // ==========================================================
+    // DETECT HEADER
+    //
+    // Do not rely on a fixed column order.
+    // ==========================================================
+
+    final header =
+    _splitCsvLine(
+      lines.first,
+    ).map(
+          (
+          value,
+          ) =>
+          value
+              .replaceAll(
+            '\ufeff',
+            '',
+          )
+              .trim()
+              .toLowerCase(),
+    ).toList();
+
+    final dateIndex =
+    header.indexOf(
+      'date',
+    );
+
+    final stateIndex =
+    header.indexOf(
+      'state',
+    );
+
+    final sexIndex =
+    header.indexOf(
+      'sex',
+    );
+
+    final ageIndex =
+    header.indexOf(
+      'age',
+    );
+
+    final ethnicityIndex =
+    header.indexOf(
+      'ethnicity',
+    );
+
+    final populationIndex =
+    header.indexOf(
+      'population',
+    );
+
+    if (dateIndex == -1 ||
+        stateIndex == -1 ||
+        sexIndex == -1 ||
+        ageIndex == -1 ||
+        ethnicityIndex == -1 ||
+        populationIndex == -1) {
+      throw Exception(
+        'Unexpected population CSV columns: '
+            '$header',
+      );
+    }
+
+    final result =
+    <String, int>{};
+
+    // ==========================================================
+    // READ ROWS
+    // ==========================================================
+
+    for (int i = 1;
+    i < lines.length;
+    i++) {
+      final line =
+      lines[i].trim();
+
+      if (line.isEmpty) {
+        continue;
+      }
+
+      final columns =
+      _splitCsvLine(
+        line,
+      );
+
+      final maxIndex = [
+        dateIndex,
+        stateIndex,
+        sexIndex,
+        ageIndex,
+        ethnicityIndex,
+        populationIndex,
+      ].reduce(
+            (
+            a,
+            b,
+            ) =>
+        a > b ? a : b,
+      );
+
+      if (columns.length <= maxIndex) {
+        continue;
+      }
+
+      // ========================================================
+      // DATE
+      // ========================================================
+
+      final date =
+      columns[dateIndex]
+          .trim();
+
+      if (date != '2023-01-01') {
+        continue;
+      }
+
+      // ========================================================
+      // FILTER TOTAL POPULATION
+      //
+      // sex       = both
+      // age       = overall
+      // ethnicity = overall
+      // ========================================================
+
+      final sex =
+      columns[sexIndex]
+          .trim()
+          .toLowerCase();
+
+      final age =
+      columns[ageIndex]
+          .trim()
+          .toLowerCase();
+
+      final ethnicity =
+      columns[ethnicityIndex]
+          .trim()
+          .toLowerCase();
+
+      if (sex != 'both' ||
+          age != 'overall' ||
+          ethnicity != 'overall') {
+        continue;
+      }
+
+      // ========================================================
+      // STATE
+      // ========================================================
+
+      final state =
+      _normalizeStateName(
+        columns[stateIndex],
+      );
+
+      if (state.isEmpty) {
+        continue;
+      }
+
+      // ========================================================
+      // POPULATION
+      //
+      // DOSM value is thousands:
+      //
+      // 2074.1
+      //
+      // =
+      //
+      // 2,074,100 people
+      // ========================================================
+
+      final populationThousands =
+      double.tryParse(
+        columns[populationIndex]
+            .trim(),
+      );
+
+      if (populationThousands ==
+          null ||
+          populationThousands <= 0) {
+        continue;
+      }
+
+      final people =
+      (populationThousands *
+          1000)
+          .round();
+
+      result[state] =
+          people;
+    }
+
+    // ==========================================================
+    // DEBUG
+    // ==========================================================
+
+    debugPrint(
+      '============================================',
+    );
+
+    debugPrint(
+      '2023 POPULATION DATA LOADED',
+    );
+
+    debugPrint(
+      'States: ${result.length}',
+    );
+
+    for (final entry
+    in result.entries) {
+      debugPrint(
+        '${entry.key}: ${entry.value}',
+      );
+    }
+
+    debugPrint(
+      '============================================',
+    );
+
+    // ==========================================================
+    // MALAYSIA = 16 STATES / FEDERAL TERRITORIES
+    // ==========================================================
+
+    if (result.length < 16) {
+      throw Exception(
+        'Incomplete 2023 state population data. '
+            'Only ${result.length} states returned. '
+            'States: ${result.keys.join(', ')}',
+      );
+    }
+
+    _memoryPopulation2023 =
+        result;
+
+    return result;
+  }
+
+  // ============================================================
+  // POPULATION FOR PDRM CRIME GROUP
+  // ============================================================
+
+  int _populationForCrimeGroup2023(
+      String state,
+      Map<String, int> population2023,
+      ) {
+    // ==========================================================
+    // KL crime includes Putrajaya
+    // ==========================================================
+
+    if (state ==
+        'W.P. Kuala Lumpur') {
+      return (population2023[
+      'W.P. Kuala Lumpur'] ??
+          0) +
+          (population2023[
+          'W.P. Putrajaya'] ??
+              0);
+    }
+
+    // ==========================================================
+    // Sabah crime includes Labuan
+    // ==========================================================
+
+    if (state == 'Sabah') {
+      return (population2023[
+      'Sabah'] ??
+          0) +
+          (population2023[
+          'W.P. Labuan'] ??
+              0);
+    }
+
+    return population2023[state] ?? 0;
+  }
+
+  // ============================================================
+  // GROUP INFORMATION
+  // ============================================================
+
+  String? _groupedWith(
+      String state,
+      ) {
+    if (state ==
+        'W.P. Kuala Lumpur') {
+      return 'W.P. Putrajaya';
+    }
+
+    if (state == 'Sabah') {
+      return 'W.P. Labuan';
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // NORMALIZE STATE NAMES
+  // ============================================================
+
+  String _normalizeStateName(
+      String value,
+      ) {
+    final clean =
+    value
+        .replaceAll(
+      '"',
+      '',
+    )
+        .trim();
+
+    final lower =
+    clean.toLowerCase();
+
+    switch (lower) {
+      case 'penang':
+        return 'Pulau Pinang';
+
+      case 'pulau pinang':
+        return 'Pulau Pinang';
+
+      case 'malacca':
+        return 'Melaka';
+
+      case 'melaka':
+        return 'Melaka';
+
+      case 'kuala lumpur':
+      case 'wp kuala lumpur':
+      case 'w.p kuala lumpur':
+      case 'w.p. kuala lumpur':
+        return 'W.P. Kuala Lumpur';
+
+      case 'putrajaya':
+      case 'wp putrajaya':
+      case 'w.p putrajaya':
+      case 'w.p. putrajaya':
+        return 'W.P. Putrajaya';
+
+      case 'labuan':
+      case 'wp labuan':
+      case 'w.p labuan':
+      case 'w.p. labuan':
+        return 'W.P. Labuan';
+
+      default:
+        return clean;
+    }
+  }
+
+  // ============================================================
+  // SIMPLE SAFE CSV PARSER
+  //
+  // Handles commas inside quoted text too.
+  // ============================================================
+
+  List<String> _splitCsvLine(
+      String line,
+      ) {
+    final result =
+    <String>[];
+
+    final current =
+    StringBuffer();
+
+    bool insideQuotes =
+    false;
+
+    for (int i = 0;
+    i < line.length;
+    i++) {
+      final char =
+      line[i];
+
+      if (char == '"') {
+        // Double quote inside quoted field:
+        //
+        // ""
+        //
+        // represents a literal quote.
+        if (insideQuotes &&
+            i + 1 < line.length &&
+            line[i + 1] == '"') {
+          current.write(
+            '"',
+          );
+
+          i++;
+
+          continue;
+        }
+
+        insideQuotes =
+        !insideQuotes;
+
+        continue;
+      }
+
+      if (char == ',' &&
+          !insideQuotes) {
+        result.add(
+          current
+              .toString()
+              .trim(),
+        );
+
+        current.clear();
+
+        continue;
+      }
+
+      current.write(
+        char,
+      );
+    }
+
+    result.add(
+      current
+          .toString()
+          .trim(),
+    );
+
+    return result;
+  }
+
+  // ============================================================
+  // SAVE SQLITE
+  // ============================================================
+
+  Future<void> _saveStateCache(
+      List<StateRiskData> data,
+      ) async {
+    final db =
+    await _getDatabase();
+
+    final batch =
+    db.batch();
+
+    batch.delete(
+      'state_risk_cache',
+    );
 
     for (final item in data) {
       batch.insert(
         'state_risk_cache',
         item.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm:
+        ConflictAlgorithm.replace,
       );
     }
 
-    await batch.commit(noResult: true);
+    await batch.commit(
+      noResult: true,
+    );
   }
 
   // ============================================================
-  // READ CACHE
+  // READ SQLITE
   // ============================================================
 
-  Future<List<StateRiskData>> _readCache() async {
-    final db = await _getDatabase();
+  Future<List<StateRiskData>>
+  _readStateCache() async {
+    final db =
+    await _getDatabase();
 
-    final rows = await db.query('state_risk_cache', orderBy: 'state ASC');
+    final rows =
+    await db.query(
+      'state_risk_cache',
+      orderBy:
+      'state ASC',
+    );
 
-    return rows.map(StateRiskData.fromMap).toList();
-  }
-}
-
-// ============================================================
-// INTERNAL RAW MODEL
-// ============================================================
-
-class _RawRisk {
-  final String state;
-
-  final int populationForRate;
-
-  final int assaultCases;
-
-  final int propertyCases;
-
-  final double crimeRate;
-
-  const _RawRisk({
-    required this.state,
-    required this.populationForRate,
-    required this.assaultCases,
-    required this.propertyCases,
-    required this.crimeRate,
-  });
-}
-
-// ============================================================
-// FIRST OR NULL
-// ============================================================
-
-extension _FirstOrNullExtension<T> on Iterable<T> {
-  T? get firstOrNull {
-    if (isEmpty) {
-      return null;
+    if (rows.isEmpty) {
+      return [];
     }
 
-    return first;
+    return rows.map(
+          (
+          row,
+          ) {
+        return StateRiskData.fromMap(
+          row,
+        );
+      },
+    ).toList();
   }
 }

@@ -2,28 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'help_support_screen.dart';
+import 'insights_hub_screen.dart';
 import 'login_screen.dart';
 import 'personal_information_screen.dart';
 import 'privacy_security_screen.dart';
 import 'registered_device_screen.dart';
 import 'sos_screen.dart';
-import 'safety_insights_screen.dart';
-
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+  });
 
   @override
   State<HomeScreen> createState() =>
       _HomeScreenState();
 }
 
-class _HomeScreenState
-    extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   final SupabaseClient supabase =
       Supabase.instance.client;
 
   int _currentIndex = 0;
+
+  // ============================================================
+  // HOME SAFETY DATA
+  //
+  // These are still temporary values.
+  // Later we will connect:
+  //
+  // GPS
+  // -> State / District
+  // -> StateRiskService
+  // -> Risk Score
+  //
+  // Do NOT connect this yet until location detection is ready.
+  // ============================================================
 
   String _locationName =
       'Detecting your location...';
@@ -85,7 +99,9 @@ class _HomeScreenState
 
     if (email != null &&
         email.isNotEmpty) {
-      return email.split('@').first;
+      return email
+          .split('@')
+          .first;
     }
 
     return 'User';
@@ -94,6 +110,10 @@ class _HomeScreenState
   String get _userEmail =>
       _currentUser?.email ??
           'No email available';
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -107,24 +127,40 @@ class _HomeScreenState
   // ============================================================
 
   Future<void> _loadSetupStatus() async {
-    final user = supabase.auth.currentUser;
+    final user =
+        supabase.auth.currentUser;
 
     if (user == null) {
       return;
     }
 
     try {
-      final profile = await supabase
+      final profile =
+      await supabase
           .from('profiles')
-          .select('phone_number')
-          .eq('id', user.id)
+          .select(
+        'phone_number',
+      )
+          .eq(
+        'id',
+        user.id,
+      )
           .maybeSingle();
 
-      final device = await supabase
+      final device =
+      await supabase
           .from('user_devices')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
+          .select(
+        'id',
+      )
+          .eq(
+        'user_id',
+        user.id,
+      )
+          .eq(
+        'is_active',
+        true,
+      )
           .maybeSingle();
 
       if (!mounted) return;
@@ -153,7 +189,7 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // OPEN PROFILE FUNCTIONS
+  // OPEN PERSONAL INFORMATION
   // ============================================================
 
   Future<void>
@@ -173,6 +209,10 @@ class _HomeScreenState
     await _loadSetupStatus();
   }
 
+  // ============================================================
+  // OPEN REGISTERED DEVICE
+  // ============================================================
+
   Future<void>
   _openRegisteredDevice() async {
     await Navigator.push(
@@ -188,6 +228,10 @@ class _HomeScreenState
     await _loadSetupStatus();
   }
 
+  // ============================================================
+  // OPEN PRIVACY
+  // ============================================================
+
   void _openPrivacy() {
     Navigator.push(
       context,
@@ -197,6 +241,10 @@ class _HomeScreenState
       ),
     );
   }
+
+  // ============================================================
+  // OPEN HELP
+  // ============================================================
 
   void _openHelp() {
     Navigator.push(
@@ -209,7 +257,7 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // REFRESH
+  // REFRESH HOME
   // ============================================================
 
   Future<void> _refreshHome() async {
@@ -244,10 +292,18 @@ class _HomeScreenState
     }
 
     late String title;
+
     late String description;
+
     late String buttonText;
+
     late IconData icon;
+
     late VoidCallback onPressed;
+
+    // ==========================================================
+    // PHONE + DEVICE MISSING
+    // ==========================================================
 
     if (!_hasPhoneNumber &&
         !_hasBoundDevice) {
@@ -267,7 +323,13 @@ class _HomeScreenState
       onPressed = () {
         _openPersonalInformation();
       };
-    } else if (!_hasPhoneNumber) {
+    }
+
+    // ==========================================================
+    // PHONE MISSING
+    // ==========================================================
+
+    else if (!_hasPhoneNumber) {
       title =
       'Add Your Phone Number';
 
@@ -284,7 +346,13 @@ class _HomeScreenState
       onPressed = () {
         _openPersonalInformation();
       };
-    } else {
+    }
+
+    // ==========================================================
+    // DEVICE MISSING
+    // ==========================================================
+
+    else {
       title =
       'Bind This Device';
 
@@ -320,10 +388,14 @@ class _HomeScreenState
         ),
         border: Border.all(
           color: Colors.amber
-              .withOpacity(0.45),
+              .withOpacity(
+            0.45,
+          ),
         ),
         color: Colors.amber
-            .withOpacity(0.08),
+            .withOpacity(
+          0.08,
+        ),
       ),
       child: Column(
         crossAxisAlignment:
@@ -361,8 +433,7 @@ class _HomeScreenState
                   const TextStyle(
                     fontSize: 16,
                     fontWeight:
-                    FontWeight
-                        .bold,
+                    FontWeight.bold,
                   ),
                 ),
               ),
@@ -407,24 +478,30 @@ class _HomeScreenState
   // ============================================================
 
   Future<void> _startSOS() async {
-    // ============================================================
+    // ==========================================================
     // CHECK SAFETY SETUP
-    // ============================================================
+    // ==========================================================
 
     if (!_setupComplete) {
       await showDialog(
         context: context,
-        builder: (dialogContext) {
+        builder: (
+            dialogContext,
+            ) {
           return AlertDialog(
-            icon: const Icon(
-              Icons.warning_amber_rounded,
+            icon:
+            const Icon(
+              Icons
+                  .warning_amber_rounded,
               size: 45,
             ),
-            title: const Text(
+            title:
+            const Text(
               'Safety Setup Required',
             ),
             content: Text(
-              !_hasPhoneNumber && !_hasBoundDevice
+              !_hasPhoneNumber &&
+                  !_hasBoundDevice
                   ? 'Please add your phone number and bind this device before using SOS.'
                   : !_hasPhoneNumber
                   ? 'Please add your phone number before using SOS.'
@@ -433,15 +510,21 @@ class _HomeScreenState
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext);
+                  Navigator.pop(
+                    dialogContext,
+                  );
                 },
-                child: const Text(
+                child:
+                const Text(
                   'Cancel',
                 ),
               ),
+
               FilledButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext);
+                  Navigator.pop(
+                    dialogContext,
+                  );
 
                   if (!_hasPhoneNumber) {
                     _openPersonalInformation();
@@ -449,7 +532,8 @@ class _HomeScreenState
                     _openRegisteredDevice();
                   }
                 },
-                child: const Text(
+                child:
+                const Text(
                   'Complete Setup',
                 ),
               ),
@@ -463,14 +547,15 @@ class _HomeScreenState
 
     if (!mounted) return;
 
-    // ============================================================
-    // OPEN NEW SOS CATEGORY SCREEN
-    // ============================================================
+    // ==========================================================
+    // TWO-STEP SOS SCREEN
+    // ==========================================================
 
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const SosScreen(),
+        builder: (_) =>
+        const SosScreen(),
       ),
     );
   }
@@ -490,7 +575,10 @@ class _HomeScreenState
         builder: (_) =>
         const LoginScreen(),
       ),
-          (route) => false,
+          (
+          route,
+          ) =>
+      false,
     );
   }
 
@@ -499,24 +587,59 @@ class _HomeScreenState
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context,
+      ) {
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex,
+        index:
+        _currentIndex,
         children: [
+          // ====================================================
+          // 0 - HOME
+          // ====================================================
+
           _buildHomePage(),
-          const SafetyInsightsScreen(),
+
+          // ====================================================
+          // 1 - INSIGHTS
+          //
+          // InsightsHubScreen contains:
+          //
+          // Data
+          // -> existing SafetyInsightsScreen
+          //
+          // Overview
+          // -> MalaysiaOverviewScreen
+          // ====================================================
+
+          const InsightsHubScreen(),
+
+          // ====================================================
+          // 2 - ACTIVITY
+          // ====================================================
+
           _buildActivityPage(),
+
+          // ====================================================
+          // 3 - PROFILE
+          // ====================================================
+
           _buildProfilePage(),
         ],
       ),
+
+      // ========================================================
+      // BOTTOM NAVIGATION
+      // ========================================================
 
       bottomNavigationBar:
       NavigationBar(
         selectedIndex:
         _currentIndex,
-        onDestinationSelected:
-            (index) {
+        onDestinationSelected: (
+            index,
+            ) {
           setState(() {
             _currentIndex =
                 index;
@@ -524,6 +647,10 @@ class _HomeScreenState
         },
         destinations:
         const [
+          // ====================================================
+          // HOME
+          // ====================================================
+
           NavigationDestination(
             icon: Icon(
               Icons.home_outlined,
@@ -533,6 +660,11 @@ class _HomeScreenState
             ),
             label: 'Home',
           ),
+
+          // ====================================================
+          // INSIGHTS
+          // ====================================================
+
           NavigationDestination(
             icon: Icon(
               Icons
@@ -543,8 +675,13 @@ class _HomeScreenState
                   .analytics_rounded,
             ),
             label:
-            'Safety Data',
+            'Insights',
           ),
+
+          // ====================================================
+          // ACTIVITY
+          // ====================================================
+
           NavigationDestination(
             icon: Icon(
               Icons
@@ -557,10 +694,14 @@ class _HomeScreenState
             label:
             'Activity',
           ),
+
+          // ====================================================
+          // PROFILE
+          // ====================================================
+
           NavigationDestination(
             icon: Icon(
-              Icons
-                  .person_outline,
+              Icons.person_outline,
             ),
             selectedIcon: Icon(
               Icons.person,
@@ -574,7 +715,7 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // HOME
+  // HOME PAGE
   // ============================================================
 
   Widget _buildHomePage() {
@@ -593,6 +734,10 @@ class _HomeScreenState
             30,
           ),
           children: [
+            // ==================================================
+            // HEADER
+            // ==================================================
+
             Row(
               children: [
                 Container(
@@ -605,7 +750,8 @@ class _HomeScreenState
                         .circular(
                       15,
                     ),
-                    color: Theme.of(
+                    color:
+                    Theme.of(
                       context,
                     )
                         .colorScheme
@@ -617,7 +763,8 @@ class _HomeScreenState
                   child: Icon(
                     Icons
                         .shield_rounded,
-                    color: Theme.of(
+                    color:
+                    Theme.of(
                       context,
                     )
                         .colorScheme
@@ -637,15 +784,13 @@ class _HomeScreenState
                     children: [
                       Text(
                         'Hello, $_userName',
-                        maxLines:
-                        1,
+                        maxLines: 1,
                         overflow:
                         TextOverflow
                             .ellipsis,
                         style:
                         const TextStyle(
-                          fontSize:
-                          21,
+                          fontSize: 21,
                           fontWeight:
                           FontWeight
                               .bold,
@@ -656,13 +801,16 @@ class _HomeScreenState
                         'Stay aware. Stay safe.',
                         style:
                         TextStyle(
-                          fontSize:
-                          13,
+                          fontSize: 13,
                         ),
                       ),
                     ],
                   ),
                 ),
+
+                // ==============================================
+                // REFRESH
+                // ==============================================
 
                 IconButton(
                   onPressed:
@@ -673,6 +821,10 @@ class _HomeScreenState
                         .refresh_rounded,
                   ),
                 ),
+
+                // ==============================================
+                // NOTIFICATIONS
+                // ==============================================
 
                 IconButton(
                   onPressed:
@@ -695,7 +847,15 @@ class _HomeScreenState
               height: 22,
             ),
 
+            // ==================================================
+            // SETUP BANNER
+            // ==================================================
+
             _buildSetupBanner(),
+
+            // ==================================================
+            // CURRENT AREA
+            // ==================================================
 
             _sectionTitle(
               icon: Icons
@@ -714,11 +874,19 @@ class _HomeScreenState
               height: 24,
             ),
 
+            // ==================================================
+            // SOS
+            // ==================================================
+
             _buildSOSCard(),
 
             const SizedBox(
               height: 24,
             ),
+
+            // ==================================================
+            // NEARBY ALERTS
+            // ==================================================
 
             _sectionTitle(
               icon: Icons
@@ -736,6 +904,10 @@ class _HomeScreenState
             const SizedBox(
               height: 24,
             ),
+
+            // ==================================================
+            // SAFETY MAP
+            // ==================================================
 
             Row(
               children: [
@@ -771,6 +943,10 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // CURRENT AREA CARD
+  // ============================================================
+
   Widget _buildCurrentAreaCard() {
     return Container(
       padding:
@@ -783,6 +959,10 @@ class _HomeScreenState
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
+          // ====================================================
+          // LOCATION
+          // ====================================================
+
           Row(
             children: [
               Container(
@@ -834,8 +1014,7 @@ class _HomeScreenState
                       _district,
                       style:
                       const TextStyle(
-                        fontSize:
-                        12,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -859,6 +1038,10 @@ class _HomeScreenState
             height: 12,
           ),
 
+          // ====================================================
+          // RISK LEVEL + SCORE
+          // ====================================================
+
           Row(
             children: [
               Expanded(
@@ -871,8 +1054,7 @@ class _HomeScreenState
                       'Safety Risk',
                       style:
                       TextStyle(
-                        fontSize:
-                        12,
+                        fontSize: 12,
                       ),
                     ),
 
@@ -903,8 +1085,7 @@ class _HomeScreenState
                           _riskLevel,
                           style:
                           TextStyle(
-                            fontSize:
-                            24,
+                            fontSize: 24,
                             fontWeight:
                             FontWeight
                                 .bold,
@@ -927,8 +1108,7 @@ class _HomeScreenState
                     'Risk Score',
                     style:
                     TextStyle(
-                      fontSize:
-                      12,
+                      fontSize: 12,
                     ),
                   ),
 
@@ -936,8 +1116,7 @@ class _HomeScreenState
                     '$_riskScore / 100',
                     style:
                     const TextStyle(
-                      fontSize:
-                      21,
+                      fontSize: 21,
                       fontWeight:
                       FontWeight
                           .bold,
@@ -963,6 +1142,10 @@ class _HomeScreenState
           const SizedBox(
             height: 18,
           ),
+
+          // ====================================================
+          // HISTORICAL + ACTIVE
+          // ====================================================
 
           Row(
             children: [
@@ -1008,6 +1191,10 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // SOS CARD
+  // ============================================================
+
   Widget _buildSOSCard() {
     return Container(
       padding:
@@ -1021,14 +1208,12 @@ class _HomeScreenState
           24,
         ),
         border: Border.all(
-          color:
-          Colors.redAccent
+          color: Colors.redAccent
               .withOpacity(
             0.4,
           ),
         ),
-        color:
-        Colors.redAccent
+        color: Colors.redAccent
             .withOpacity(
           0.06,
         ),
@@ -1041,8 +1226,7 @@ class _HomeScreenState
             TextStyle(
               fontSize: 20,
               fontWeight:
-              FontWeight
-                  .bold,
+              FontWeight.bold,
             ),
           ),
 
@@ -1061,18 +1245,22 @@ class _HomeScreenState
             height: 18,
           ),
 
+          // ====================================================
+          // SOS BUTTON
+          // ====================================================
+
           GestureDetector(
-            onTap: _startSOS,
-            child:
-            Container(
+            onTap:
+            _startSOS,
+            child: Container(
               width: 125,
               height: 125,
               decoration:
               BoxDecoration(
                 shape:
                 BoxShape.circle,
-                color: Colors
-                    .redAccent,
+                color:
+                Colors.redAccent,
                 boxShadow: [
                   BoxShadow(
                     color: Colors
@@ -1100,6 +1288,7 @@ class _HomeScreenState
                     color:
                     Colors.white,
                   ),
+
                   Text(
                     'EMERGENCY',
                     style:
@@ -1109,8 +1298,7 @@ class _HomeScreenState
                       fontWeight:
                       FontWeight
                           .bold,
-                      fontSize:
-                      10,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -1137,6 +1325,10 @@ class _HomeScreenState
       ),
     );
   }
+
+  // ============================================================
+  // NEARBY ALERTS
+  // ============================================================
 
   Widget _buildNearbyAlerts() {
     if (_nearbyIncidents == 0) {
@@ -1185,8 +1377,7 @@ class _HomeScreenState
                     'No SafeZone emergency alerts within 1 km.',
                     style:
                     TextStyle(
-                      fontSize:
-                      11,
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -1211,11 +1402,15 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // MAP PREVIEW
+  // ============================================================
+
   Widget _buildMapPreview() {
     return InkWell(
-      onTap: _openFullMap,
-      child:
-      Container(
+      onTap:
+      _openFullMap,
+      child: Container(
         height: 180,
         decoration:
         _cardDecoration(),
@@ -1234,28 +1429,24 @@ class _HomeScreenState
                 Icons
                     .location_on_rounded,
                 size: 48,
-                color: Colors
-                    .blueAccent,
+                color:
+                Colors.blueAccent,
               ),
             ),
 
             Positioned(
               left: 14,
               top: 14,
-              child:
-              Container(
+              child: Container(
                 padding:
                 const EdgeInsets
                     .symmetric(
-                  horizontal:
-                  11,
-                  vertical:
-                  7,
+                  horizontal: 11,
+                  vertical: 7,
                 ),
                 decoration:
                 BoxDecoration(
-                  color:
-                  Colors.black
+                  color: Colors.black
                       .withOpacity(
                     0.65,
                   ),
@@ -1272,8 +1463,7 @@ class _HomeScreenState
                   TextStyle(
                     color:
                     Colors.white,
-                    fontSize:
-                    12,
+                    fontSize: 12,
                   ),
                 ),
               ),
@@ -1285,245 +1475,7 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // SAFETY DATA
-  // ============================================================
-
-  Widget _buildSafetyDataPage() {
-    return SafeArea(
-      child: ListView(
-        padding:
-        const EdgeInsets.all(
-          20,
-        ),
-        children: [
-          const Text(
-            'Safety Data',
-            style:
-            TextStyle(
-              fontSize: 26,
-              fontWeight:
-              FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(
-            height: 5,
-          ),
-
-          const Text(
-            'Government historical data and '
-                'SafeZone community statistics.',
-          ),
-
-          const SizedBox(
-            height: 25,
-          ),
-
-          _dataHeader(
-            icon: Icons
-                .account_balance_outlined,
-            title:
-            'Government Data',
-            subtitle:
-            'Source: data.gov.my',
-          ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
-          Container(
-            padding:
-            const EdgeInsets.all(
-              20,
-            ),
-            decoration:
-            _cardDecoration(),
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
-              children: [
-                const Text(
-                  'Historical Crime Overview',
-                  style:
-                  TextStyle(
-                    fontSize:
-                    18,
-                    fontWeight:
-                    FontWeight
-                        .bold,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child:
-                      _dataStat(
-                        'Historical Cases',
-                        '$_historicalCases',
-                      ),
-                    ),
-
-                    Expanded(
-                      child:
-                      _dataStat(
-                        'Risk Score',
-                        '$_riskScore',
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                Container(
-                  height: 180,
-                  width:
-                  double.infinity,
-                  decoration:
-                  BoxDecoration(
-                    borderRadius:
-                    BorderRadius
-                        .circular(
-                      18,
-                    ),
-                    color: Theme.of(
-                      context,
-                    )
-                        .colorScheme
-                        .surfaceContainerHighest,
-                  ),
-                  child:
-                  const Column(
-                    mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
-                    children: [
-                      Icon(
-                        Icons
-                            .show_chart_rounded,
-                        size: 45,
-                      ),
-                      SizedBox(
-                        height: 8,
-                      ),
-                      Text(
-                        'Historical Crime Trend',
-                        style:
-                        TextStyle(
-                          fontWeight:
-                          FontWeight
-                              .w600,
-                        ),
-                      ),
-                      Text(
-                        'data.gov.my chart will appear here',
-                        style:
-                        TextStyle(
-                          fontSize:
-                          11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 18,
-                ),
-
-                _categoryRow(
-                  'Violent Crime',
-                  0,
-                ),
-
-                _categoryRow(
-                  'Property Crime',
-                  0,
-                ),
-
-                _categoryRow(
-                  'Other Reported Cases',
-                  0,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(
-            height: 30,
-          ),
-
-          _dataHeader(
-            icon: Icons
-                .shield_outlined,
-            title:
-            'SafeZone Community',
-            subtitle:
-            'Live SafeZone statistics',
-          ),
-
-          const SizedBox(
-            height: 12,
-          ),
-
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics:
-            const NeverScrollableScrollPhysics(),
-            mainAxisSpacing:
-            12,
-            crossAxisSpacing:
-            12,
-            childAspectRatio:
-            1.35,
-            children: [
-              _communityStatCard(
-                icon:
-                Icons.sos_rounded,
-                value: '0',
-                label:
-                'Total SOS',
-              ),
-              _communityStatCard(
-                icon: Icons
-                    .warning_amber_rounded,
-                value: '0',
-                label:
-                'Active Incidents',
-              ),
-              _communityStatCard(
-                icon: Icons
-                    .check_circle_outline,
-                value: '0',
-                label:
-                'Resolved',
-              ),
-              _communityStatCard(
-                icon: Icons
-                    .volunteer_activism_outlined,
-                value: '0',
-                label:
-                'Users Assisted',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // ACTIVITY
+  // ACTIVITY PAGE
   // ============================================================
 
   Widget _buildActivityPage() {
@@ -1582,8 +1534,7 @@ class _HomeScreenState
                   'No activity yet',
                   style:
                   TextStyle(
-                    fontSize:
-                    18,
+                    fontSize: 18,
                     fontWeight:
                     FontWeight
                         .w600,
@@ -1598,8 +1549,7 @@ class _HomeScreenState
                   'Your SOS requests and incidents you '
                       'responded to will appear here.',
                   textAlign:
-                  TextAlign
-                      .center,
+                  TextAlign.center,
                 ),
               ],
             ),
@@ -1610,7 +1560,7 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // PROFILE
+  // PROFILE PAGE
   // ============================================================
 
   Widget _buildProfilePage() {
@@ -1635,6 +1585,10 @@ class _HomeScreenState
             height: 28,
           ),
 
+          // ====================================================
+          // AVATAR
+          // ====================================================
+
           Center(
             child:
             CircleAvatar(
@@ -1646,11 +1600,9 @@ class _HomeScreenState
                     : 'U',
                 style:
                 const TextStyle(
-                  fontSize:
-                  34,
+                  fontSize: 34,
                   fontWeight:
-                  FontWeight
-                      .bold,
+                  FontWeight.bold,
                 ),
               ),
             ),
@@ -1682,9 +1634,13 @@ class _HomeScreenState
             height: 30,
           ),
 
+          // ====================================================
+          // PERSONAL INFORMATION
+          // ====================================================
+
           _profileOption(
-            icon: Icons
-                .person_outline,
+            icon:
+            Icons.person_outline,
             title:
             'Personal Information',
             subtitle:
@@ -1693,9 +1649,13 @@ class _HomeScreenState
             _openPersonalInformation,
           ),
 
+          // ====================================================
+          // REGISTERED DEVICE
+          // ====================================================
+
           _profileOption(
-            icon: Icons
-                .devices_outlined,
+            icon:
+            Icons.devices_outlined,
             title:
             'Registered Device',
             subtitle:
@@ -1705,6 +1665,10 @@ class _HomeScreenState
             onTap:
             _openRegisteredDevice,
           ),
+
+          // ====================================================
+          // NOTIFICATIONS
+          // ====================================================
 
           _profileOption(
             icon: Icons
@@ -1726,9 +1690,13 @@ class _HomeScreenState
             },
           ),
 
+          // ====================================================
+          // PRIVACY
+          // ====================================================
+
           _profileOption(
-            icon: Icons
-                .security_outlined,
+            icon:
+            Icons.security_outlined,
             title:
             'Privacy & Security',
             subtitle:
@@ -1736,6 +1704,10 @@ class _HomeScreenState
             onTap:
             _openPrivacy,
           ),
+
+          // ====================================================
+          // HELP
+          // ====================================================
 
           _profileOption(
             icon: Icons
@@ -1752,17 +1724,19 @@ class _HomeScreenState
             height: 22,
           ),
 
+          // ====================================================
+          // LOGOUT
+          // ====================================================
+
           SizedBox(
             height: 50,
             child:
-            OutlinedButton
-                .icon(
+            OutlinedButton.icon(
               onPressed:
               _logout,
               icon:
               const Icon(
-                Icons
-                    .logout_rounded,
+                Icons.logout_rounded,
               ),
               label:
               const Text(
@@ -1804,15 +1778,14 @@ class _HomeScreenState
                   const Center(
                     child: Column(
                       mainAxisSize:
-                      MainAxisSize
-                          .min,
+                      MainAxisSize.min,
                       children: [
                         Icon(
                           Icons
                               .location_on_rounded,
                           size: 65,
-                          color: Colors
-                              .blueAccent,
+                          color:
+                          Colors.blueAccent,
                         ),
 
                         SizedBox(
@@ -1823,8 +1796,7 @@ class _HomeScreenState
                           'Live Safety Map',
                           style:
                           TextStyle(
-                            fontSize:
-                            20,
+                            fontSize: 20,
                             fontWeight:
                             FontWeight
                                 .bold,
@@ -1845,7 +1817,7 @@ class _HomeScreenState
   }
 
   // ============================================================
-  // HELPERS
+  // SECTION TITLE
   // ============================================================
 
   Widget _sectionTitle({
@@ -1876,22 +1848,32 @@ class _HomeScreenState
     );
   }
 
+  // ============================================================
+  // CARD DECORATION
+  // ============================================================
+
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       borderRadius:
       BorderRadius.circular(
         20,
       ),
-      color: Theme.of(context)
+      color:
+      Theme.of(context)
           .colorScheme
           .surfaceContainer,
       border: Border.all(
-        color: Theme.of(context)
+        color:
+        Theme.of(context)
             .colorScheme
             .outlineVariant,
       ),
     );
   }
+
+  // ============================================================
+  // MINI RISK STAT
+  // ============================================================
 
   Widget _miniRiskStat({
     required String label,
@@ -1904,9 +1886,11 @@ class _HomeScreenState
           icon,
           size: 20,
         ),
+
         const SizedBox(
           height: 5,
         ),
+
         Text(
           value,
           style:
@@ -1916,6 +1900,7 @@ class _HomeScreenState
             FontWeight.bold,
           ),
         ),
+
         Text(
           label,
           textAlign:
@@ -1929,149 +1914,9 @@ class _HomeScreenState
     );
   }
 
-  Widget _dataHeader({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 30,
-        ),
-
-        const SizedBox(
-          width: 12,
-        ),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
-            children: [
-              Text(
-                title,
-                style:
-                const TextStyle(
-                  fontSize: 18,
-                  fontWeight:
-                  FontWeight
-                      .bold,
-                ),
-              ),
-
-              Text(
-                subtitle,
-                style:
-                const TextStyle(
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _dataStat(
-      String label,
-      String value,
-      ) {
-    return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style:
-          const TextStyle(
-            fontSize: 27,
-            fontWeight:
-            FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style:
-          const TextStyle(
-            fontSize: 11,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _categoryRow(
-      String label,
-      int value,
-      ) {
-    return Padding(
-      padding:
-      const EdgeInsets.only(
-        bottom: 12,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-            ),
-          ),
-          Text(
-            '$value',
-            style:
-            const TextStyle(
-              fontWeight:
-              FontWeight
-                  .bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _communityStatCard({
-    required IconData icon,
-    required String value,
-    required String label,
-  }) {
-    return Container(
-      padding:
-      const EdgeInsets.all(
-        17,
-      ),
-      decoration:
-      _cardDecoration(),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          Icon(icon),
-          const Spacer(),
-          Text(
-            value,
-            style:
-            const TextStyle(
-              fontSize: 25,
-              fontWeight:
-              FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style:
-            const TextStyle(
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ============================================================
+  // PROFILE OPTION
+  // ============================================================
 
   Widget _profileOption({
     required IconData icon,
@@ -2087,9 +1932,13 @@ class _HomeScreenState
         vertical: 2,
       ),
       leading:
-      Icon(icon),
+      Icon(
+        icon,
+      ),
       title:
-      Text(title),
+      Text(
+        title,
+      ),
       subtitle:
       subtitle != null
           ? Text(
@@ -2105,28 +1954,43 @@ class _HomeScreenState
         Icons
             .chevron_right_rounded,
       ),
-      onTap: onTap,
+      onTap:
+      onTap,
     );
   }
+
+  // ============================================================
+  // RISK COLOR
+  // ============================================================
 
   Color _riskColor() {
     switch (
     _riskLevel.toUpperCase()) {
-      case 'HIGH':
+      case 'VERY HIGH':
         return Colors.red;
+
+      case 'HIGH':
+        return Colors.orange;
 
       case 'MODERATE':
       case 'MEDIUM':
-        return Colors.orange;
+        return Colors.amber;
 
       default:
         return Colors.green;
     }
   }
 
+  // ============================================================
+  // RISK DESCRIPTION
+  // ============================================================
+
   String _riskDescription() {
     switch (
     _riskLevel.toUpperCase()) {
+      case 'VERY HIGH':
+        return 'Very high historical risk detected. Exercise increased caution in this area.';
+
       case 'HIGH':
         return 'Higher historical risk detected. Stay alert and avoid isolated areas.';
 
@@ -2142,6 +2006,9 @@ class _HomeScreenState
 
 // ============================================================
 // TEMPORARY MAP
+//
+// This remains unchanged for now.
+// Later we replace only this with the real normal map.
 // ============================================================
 
 class _MapBackgroundPainter
@@ -2153,22 +2020,27 @@ class _MapBackgroundPainter
       ) {
     final gridPaint =
     Paint()
-      ..color = Colors.grey
-          .withOpacity(
+      ..color =
+      Colors.grey.withOpacity(
         0.15,
       )
-      ..strokeWidth = 1.5;
+      ..strokeWidth =
+      1.5;
 
     final roadPaint =
     Paint()
-      ..color = Colors.grey
-          .withOpacity(
+      ..color =
+      Colors.grey.withOpacity(
         0.28,
       )
-      ..strokeWidth = 5
+      ..strokeWidth =
+      5
       ..style =
-          PaintingStyle
-              .stroke;
+          PaintingStyle.stroke;
+
+    // ==========================================================
+    // HORIZONTAL GRID
+    // ==========================================================
 
     for (
     double y = 30;
@@ -2176,7 +2048,10 @@ class _MapBackgroundPainter
     y += 45
     ) {
       canvas.drawLine(
-        Offset(0, y),
+        Offset(
+          0,
+          y,
+        ),
         Offset(
           size.width,
           y,
@@ -2185,13 +2060,20 @@ class _MapBackgroundPainter
       );
     }
 
+    // ==========================================================
+    // VERTICAL GRID
+    // ==========================================================
+
     for (
     double x = 35;
     x < size.width;
     x += 55
     ) {
       canvas.drawLine(
-        Offset(x, 0),
+        Offset(
+          x,
+          0,
+        ),
         Offset(
           x,
           size.height,
@@ -2199,6 +2081,10 @@ class _MapBackgroundPainter
         gridPaint,
       );
     }
+
+    // ==========================================================
+    // ROAD
+    // ==========================================================
 
     final road =
     Path()
