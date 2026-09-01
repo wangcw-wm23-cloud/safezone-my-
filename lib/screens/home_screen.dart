@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/location_service.dart';
+import '../services/state_risk_service.dart';
+
 import 'help_support_screen.dart';
 import 'insights_hub_screen.dart';
 import 'login_screen.dart';
@@ -23,21 +26,17 @@ class _HomeScreenState extends State<HomeScreen> {
   final SupabaseClient supabase =
       Supabase.instance.client;
 
+  // ============================================================
+  // BOTTOM NAVIGATION
+  // ============================================================
+
   int _currentIndex = 0;
 
   // ============================================================
-  // HOME SAFETY DATA
-  //
-  // These are still temporary values.
-  // Later we will connect:
-  //
-  // GPS
-  // -> State / District
-  // -> StateRiskService
-  // -> Risk Score
-  //
-  // Do NOT connect this yet until location detection is ready.
+  // CURRENT LOCATION
   // ============================================================
+
+  bool _locationLoading = false;
 
   String _locationName =
       'Detecting your location...';
@@ -45,11 +44,33 @@ class _HomeScreenState extends State<HomeScreen> {
   String _district =
       'Location not available yet';
 
-  String _riskLevel = 'LOW';
+  String? _currentState;
 
-  int _riskScore = 24;
+  double? _currentLatitude;
+
+  double? _currentLongitude;
+
+  SafeZoneLocationErrorType?
+  _lastLocationErrorType;
+
+  // ============================================================
+  // CURRENT AREA RISK
+  // ============================================================
+
+  bool _riskAvailable = false;
+
+  String _riskLevel =
+      'UNKNOWN';
+
+  int _riskScore = 0;
 
   int _historicalCases = 0;
+
+  // ============================================================
+  // SAFEZONE LIVE INCIDENTS
+  //
+  // This will be connected to Supabase later.
+  // ============================================================
 
   int _nearbyIncidents = 0;
 
@@ -79,7 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
       supabase.auth.currentUser;
 
   String get _userName {
-    final user = _currentUser;
+    final user =
+        _currentUser;
 
     if (user == null) {
       return 'User';
@@ -95,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return fullName;
     }
 
-    final email = user.email;
+    final email =
+        user.email;
 
     if (email != null &&
         email.isNotEmpty) {
@@ -119,7 +142,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-    _loadSetupStatus();
+    _initializeHome();
+  }
+
+  // ============================================================
+  // INITIALIZE HOME
+  // ============================================================
+
+  Future<void> _initializeHome() async {
+    await _loadSetupStatus();
+
+    if (!mounted) return;
+
+    await _loadCurrentSafetyData();
   }
 
   // ============================================================
@@ -186,6 +221,486 @@ class _HomeScreenState extends State<HomeScreen> {
         _setupLoading = false;
       });
     }
+  }
+
+  // ============================================================
+  // LOAD CURRENT GPS + STATE RISK
+  // ============================================================
+
+  Future<bool> _loadCurrentSafetyData({
+    bool refreshRisk = false,
+    bool showErrorSnackBar = false,
+  }) async {
+    if (_locationLoading) {
+      return false;
+    }
+
+    setState(() {
+      _locationLoading = true;
+
+      _lastLocationErrorType = null;
+
+      _locationName =
+      'Detecting your location...';
+
+      _district =
+      'Getting GPS and safety information...';
+    });
+
+    try {
+      // ========================================================
+      // STEP 1:
+      // GET GPS + REVERSE GEOCODING
+      // ========================================================
+
+      final location =
+      await LocationService.instance
+          .getCurrentLocation();
+
+      if (!mounted) {
+        return false;
+      }
+
+      // ========================================================
+      // SAVE GPS
+      // ========================================================
+
+      _currentLatitude =
+          location.latitude;
+
+      _currentLongitude =
+          location.longitude;
+
+      _currentState =
+          location.state;
+
+      // ========================================================
+      // CREATE HOME DISPLAY
+      // ========================================================
+
+      final stateName =
+      location.state != null
+          ? _shortStateName(
+        location.state!,
+      )
+          : null;
+
+      final districtText =
+      stateName != null &&
+          location.district
+              .toLowerCase() !=
+              stateName.toLowerCase()
+          ? '${location.district} • $stateName'
+          : location.district;
+
+      // ========================================================
+      // NO STATE FOUND
+      //
+      // GPS may still work, but risk cannot be matched.
+      // ========================================================
+
+      if (location.state == null) {
+        setState(() {
+          _locationName =
+              location.locationName;
+
+          _district =
+              districtText;
+
+          _riskAvailable =
+          false;
+
+          _riskLevel =
+          'UNKNOWN';
+
+          _riskScore =
+          0;
+
+          _historicalCases =
+          0;
+
+          _locationLoading =
+          false;
+        });
+
+        if (showErrorSnackBar &&
+            mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Location detected, but the Malaysian state could not be identified.',
+              ),
+            ),
+          );
+        }
+
+        return false;
+      }
+
+      // ========================================================
+      // STEP 2:
+      // LOAD STATE RISK DATA
+      // ========================================================
+
+      final stateRisks =
+      await StateRiskService.instance
+          .loadStateRisks(
+        refresh:
+        refreshRisk,
+      );
+
+      if (!mounted) {
+        return false;
+      }
+
+      // ========================================================
+      // STEP 3:
+      // MATCH CURRENT STATE
+      // ========================================================
+
+      final currentRisk =
+      _findStateRisk(
+        stateRisks,
+        location.state!,
+      );
+
+      // ========================================================
+      // STATE FOUND BUT NO RISK DATA
+      // ========================================================
+
+      if (currentRisk == null) {
+        setState(() {
+          _locationName =
+              location.locationName;
+
+          _district =
+              districtText;
+
+          _riskAvailable =
+          false;
+
+          _riskLevel =
+          'UNKNOWN';
+
+          _riskScore =
+          0;
+
+          _historicalCases =
+          0;
+
+          _locationLoading =
+          false;
+        });
+
+        if (showErrorSnackBar &&
+            mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
+            SnackBar(
+              content: Text(
+                'No historical risk information is available for ${_shortStateName(location.state!)}.',
+              ),
+            ),
+          );
+        }
+
+        return false;
+      }
+
+      // ========================================================
+      // SUCCESS
+      // ========================================================
+
+      setState(() {
+        _locationName =
+            location.locationName;
+
+        _district =
+            districtText;
+
+        _currentState =
+            location.state;
+
+        _riskAvailable =
+        true;
+
+        _riskLevel =
+            currentRisk.riskLevel;
+
+        _riskScore =
+            currentRisk.riskScore;
+
+        _historicalCases =
+            currentRisk.totalCases;
+
+        _locationLoading =
+        false;
+      });
+
+      debugPrint(
+        '============================================',
+      );
+
+      debugPrint(
+        'SAFEZONE HOME SAFETY DATA',
+      );
+
+      debugPrint(
+        'Location: ${location.locationName}',
+      );
+
+      debugPrint(
+        'Area: $districtText',
+      );
+
+      debugPrint(
+        'State: ${location.state}',
+      );
+
+      debugPrint(
+        'Latitude: ${location.latitude}',
+      );
+
+      debugPrint(
+        'Longitude: ${location.longitude}',
+      );
+
+      debugPrint(
+        'Risk Score: ${currentRisk.riskScore}',
+      );
+
+      debugPrint(
+        'Risk Level: ${currentRisk.riskLevel}',
+      );
+
+      debugPrint(
+        'Historical Cases: ${currentRisk.totalCases}',
+      );
+
+      debugPrint(
+        'Crime Rate: ${currentRisk.crimeRatePer100k.toStringAsFixed(2)} / 100k',
+      );
+
+      debugPrint(
+        '============================================',
+      );
+
+      return true;
+    }
+
+    // ==========================================================
+    // LOCATION-SPECIFIC ERROR
+    // ==========================================================
+
+    on SafeZoneLocationException catch (e) {
+      debugPrint(
+        'HOME LOCATION ERROR: ${e.message}',
+      );
+
+      if (!mounted) {
+        return false;
+      }
+
+      setState(() {
+        _locationLoading =
+        false;
+
+        _lastLocationErrorType =
+            e.type;
+
+        _riskAvailable =
+        false;
+
+        _riskLevel =
+        'UNKNOWN';
+
+        _riskScore =
+        0;
+
+        _historicalCases =
+        0;
+
+        switch (e.type) {
+          case SafeZoneLocationErrorType
+              .serviceDisabled:
+            _locationName =
+            'Location Disabled';
+
+            _district =
+            'Turn on GPS to view your current safety area';
+
+            break;
+
+          case SafeZoneLocationErrorType
+              .permissionDenied:
+            _locationName =
+            'Location Permission Required';
+
+            _district =
+            'Allow location access to view local safety risk';
+
+            break;
+
+          case SafeZoneLocationErrorType
+              .permissionDeniedForever:
+            _locationName =
+            'Location Access Blocked';
+
+            _district =
+            'Enable location permission in App Settings';
+
+            break;
+
+          case SafeZoneLocationErrorType
+              .unableToGetLocation:
+            _locationName =
+            'Location Unavailable';
+
+            _district =
+            'Unable to get a GPS position';
+
+            break;
+
+          case SafeZoneLocationErrorType
+              .unableToDetermineArea:
+            _locationName =
+            'Area Unavailable';
+
+            _district =
+            'Unable to determine the current area';
+
+            break;
+        }
+      });
+
+      if (showErrorSnackBar &&
+          mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          SnackBar(
+            content:
+            Text(
+              e.message,
+            ),
+          ),
+        );
+      }
+
+      return false;
+    }
+
+    // ==========================================================
+    // OTHER ERROR
+    // ==========================================================
+
+    catch (e) {
+      debugPrint(
+        'HOME SAFETY DATA ERROR: $e',
+      );
+
+      if (!mounted) {
+        return false;
+      }
+
+      setState(() {
+        _locationLoading =
+        false;
+
+        _riskAvailable =
+        false;
+
+        _riskLevel =
+        'UNKNOWN';
+
+        _riskScore =
+        0;
+
+        _historicalCases =
+        0;
+
+        _locationName =
+        'Safety Data Unavailable';
+
+        _district =
+        'Unable to load current safety information';
+      });
+
+      if (showErrorSnackBar &&
+          mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to update current safety information.',
+            ),
+          ),
+        );
+      }
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // FIND STATE RISK
+  // ============================================================
+
+  StateRiskData? _findStateRisk(
+      List<StateRiskData> data,
+      String state,
+      ) {
+    for (final item in data) {
+      if (item.state == state) {
+        return item;
+      }
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // LOCATION ACTION
+  //
+  // GPS button behaviour:
+  //
+  // GPS off
+  // -> Location settings
+  //
+  // Permanently denied
+  // -> App settings
+  //
+  // Otherwise
+  // -> Refresh location
+  // ============================================================
+
+  Future<void> _onLocationAction() async {
+    if (_locationLoading) {
+      return;
+    }
+
+    if (_lastLocationErrorType ==
+        SafeZoneLocationErrorType
+            .serviceDisabled) {
+      await LocationService.instance
+          .openLocationSettings();
+
+      return;
+    }
+
+    if (_lastLocationErrorType ==
+        SafeZoneLocationErrorType
+            .permissionDeniedForever) {
+      await LocationService.instance
+          .openAppSettings();
+
+      return;
+    }
+
+    await _loadCurrentSafetyData(
+      showErrorSnackBar:
+      true,
+    );
   }
 
   // ============================================================
@@ -258,27 +773,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ============================================================
   // REFRESH HOME
+  //
+  // Refresh:
+  //
+  // 1. Account setup
+  // 2. GPS
+  // 3. Area
+  // 4. Risk data
   // ============================================================
 
   Future<void> _refreshHome() async {
     await _loadSetupStatus();
 
-    await Future.delayed(
-      const Duration(
-        milliseconds: 300,
-      ),
+    final success =
+    await _loadCurrentSafetyData(
+      refreshRisk:
+      true,
+
+      showErrorSnackBar:
+      true,
     );
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Safety information refreshed.',
+    if (success) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Current location and safety information updated.',
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   // ============================================================
@@ -302,7 +829,7 @@ class _HomeScreenState extends State<HomeScreen> {
     late VoidCallback onPressed;
 
     // ==========================================================
-    // PHONE + DEVICE MISSING
+    // BOTH MISSING
     // ==========================================================
 
     if (!_hasPhoneNumber &&
@@ -474,7 +1001,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // SOS
+  // START SOS
   // ============================================================
 
   Future<void> _startSOS() async {
@@ -484,7 +1011,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!_setupComplete) {
       await showDialog(
-        context: context,
+        context:
+        context,
         builder: (
             dialogContext,
             ) {
@@ -499,7 +1027,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text(
               'Safety Setup Required',
             ),
-            content: Text(
+            content:
+            Text(
               !_hasPhoneNumber &&
                   !_hasBoundDevice
                   ? 'Please add your phone number and bind this device before using SOS.'
@@ -509,7 +1038,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
+                onPressed:
+                    () {
                   Navigator.pop(
                     dialogContext,
                   );
@@ -521,7 +1051,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               FilledButton(
-                onPressed: () {
+                onPressed:
+                    () {
                   Navigator.pop(
                     dialogContext,
                   );
@@ -548,7 +1079,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
 
     // ==========================================================
-    // TWO-STEP SOS SCREEN
+    // OPEN SOS CATEGORY PAGE
     // ==========================================================
 
     await Navigator.push(
@@ -591,38 +1122,31 @@ class _HomeScreenState extends State<HomeScreen> {
       BuildContext context,
       ) {
     return Scaffold(
-      body: IndexedStack(
+      body:
+      IndexedStack(
         index:
         _currentIndex,
         children: [
           // ====================================================
-          // 0 - HOME
+          // HOME
           // ====================================================
 
           _buildHomePage(),
 
           // ====================================================
-          // 1 - INSIGHTS
-          //
-          // InsightsHubScreen contains:
-          //
-          // Data
-          // -> existing SafetyInsightsScreen
-          //
-          // Overview
-          // -> MalaysiaOverviewScreen
+          // INSIGHTS
           // ====================================================
 
           const InsightsHubScreen(),
 
           // ====================================================
-          // 2 - ACTIVITY
+          // ACTIVITY
           // ====================================================
 
           _buildActivityPage(),
 
           // ====================================================
-          // 3 - PROFILE
+          // PROFILE
           // ====================================================
 
           _buildProfilePage(),
@@ -630,7 +1154,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
 
       // ========================================================
-      // BOTTOM NAVIGATION
+      // NAVIGATION
       // ========================================================
 
       bottomNavigationBar:
@@ -647,10 +1171,6 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         destinations:
         const [
-          // ====================================================
-          // HOME
-          // ====================================================
-
           NavigationDestination(
             icon: Icon(
               Icons.home_outlined,
@@ -658,12 +1178,9 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedIcon: Icon(
               Icons.home_rounded,
             ),
-            label: 'Home',
+            label:
+            'Home',
           ),
-
-          // ====================================================
-          // INSIGHTS
-          // ====================================================
 
           NavigationDestination(
             icon: Icon(
@@ -678,10 +1195,6 @@ class _HomeScreenState extends State<HomeScreen> {
             'Insights',
           ),
 
-          // ====================================================
-          // ACTIVITY
-          // ====================================================
-
           NavigationDestination(
             icon: Icon(
               Icons
@@ -694,10 +1207,6 @@ class _HomeScreenState extends State<HomeScreen> {
             label:
             'Activity',
           ),
-
-          // ====================================================
-          // PROFILE
-          // ====================================================
 
           NavigationDestination(
             icon: Icon(
@@ -725,9 +1234,10 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh:
         _refreshHome,
         child: ListView(
+          physics:
+          const AlwaysScrollableScrollPhysics(),
           padding:
-          const EdgeInsets
-              .fromLTRB(
+          const EdgeInsets.fromLTRB(
             20,
             18,
             20,
@@ -746,8 +1256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration:
                   BoxDecoration(
                     borderRadius:
-                    BorderRadius
-                        .circular(
+                    BorderRadius.circular(
                       15,
                     ),
                     color:
@@ -760,7 +1269,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       0.15,
                     ),
                   ),
-                  child: Icon(
+                  child:
+                  Icon(
                     Icons
                         .shield_rounded,
                     color:
@@ -777,23 +1287,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 Expanded(
-                  child: Column(
+                  child:
+                  Column(
                     crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Hello, $_userName',
-                        maxLines: 1,
+                        maxLines:
+                        1,
                         overflow:
-                        TextOverflow
-                            .ellipsis,
+                        TextOverflow.ellipsis,
                         style:
                         const TextStyle(
-                          fontSize: 21,
+                          fontSize:
+                          21,
                           fontWeight:
-                          FontWeight
-                              .bold,
+                          FontWeight.bold,
                         ),
                       ),
 
@@ -801,7 +1311,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Stay aware. Stay safe.',
                         style:
                         TextStyle(
-                          fontSize: 13,
+                          fontSize:
+                          13,
                         ),
                       ),
                     ],
@@ -814,22 +1325,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 IconButton(
                   onPressed:
-                  _refreshHome,
+                  _locationLoading
+                      ? null
+                      : _refreshHome,
                   icon:
-                  const Icon(
+                  _locationLoading
+                      ? const SizedBox(
+                    width:
+                    20,
+                    height:
+                    20,
+                    child:
+                    CircularProgressIndicator(
+                      strokeWidth:
+                      2,
+                    ),
+                  )
+                      : const Icon(
                     Icons
                         .refresh_rounded,
                   ),
                 ),
 
                 // ==============================================
-                // NOTIFICATIONS
+                // NOTIFICATION
                 // ==============================================
 
                 IconButton(
                   onPressed:
                       () {},
-                  icon: Badge(
+                  icon:
+                  Badge(
                     isLabelVisible:
                     _nearbyIncidents >
                         0,
@@ -848,7 +1374,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // ==================================================
-            // SETUP BANNER
+            // SETUP
             // ==================================================
 
             _buildSetupBanner(),
@@ -955,7 +1481,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       decoration:
       _cardDecoration(),
-      child: Column(
+      child:
+      Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
@@ -972,13 +1499,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 BoxDecoration(
                   shape:
                   BoxShape.circle,
-                  color: Colors.blue
-                      .withOpacity(
+                  color:
+                  Colors.blue.withOpacity(
                     0.12,
                   ),
                 ),
                 child:
-                const Icon(
+                _locationLoading
+                    ? const Padding(
+                  padding:
+                  EdgeInsets.all(
+                    14,
+                  ),
+                  child:
+                  CircularProgressIndicator(
+                    strokeWidth:
+                    2.5,
+                  ),
+                )
+                    : const Icon(
                   Icons
                       .my_location_rounded,
                   color:
@@ -991,18 +1530,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               Expanded(
-                child: Column(
+                child:
+                Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
                   children: [
                     Text(
                       _locationName,
                       style:
                       const TextStyle(
                         fontWeight:
-                        FontWeight
-                            .w600,
+                        FontWeight.w600,
                       ),
                     ),
 
@@ -1014,16 +1552,46 @@ class _HomeScreenState extends State<HomeScreen> {
                       _district,
                       style:
                       const TextStyle(
-                        fontSize: 12,
+                        fontSize:
+                        12,
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const Icon(
-                Icons
-                    .gps_fixed_rounded,
+              // ==================================================
+              // GPS ACTION
+              // ==================================================
+
+              IconButton(
+                tooltip:
+                _lastLocationErrorType ==
+                    SafeZoneLocationErrorType
+                        .serviceDisabled
+                    ? 'Open GPS settings'
+                    : _lastLocationErrorType ==
+                    SafeZoneLocationErrorType
+                        .permissionDeniedForever
+                    ? 'Open app settings'
+                    : 'Refresh location',
+                onPressed:
+                _locationLoading
+                    ? null
+                    : _onLocationAction,
+                icon:
+                Icon(
+                  _lastLocationErrorType ==
+                      SafeZoneLocationErrorType
+                          .serviceDisabled ||
+                      _lastLocationErrorType ==
+                          SafeZoneLocationErrorType
+                              .permissionDeniedForever
+                      ? Icons
+                      .location_disabled_outlined
+                      : Icons
+                      .gps_fixed_rounded,
+                ),
               ),
             ],
           ),
@@ -1039,22 +1607,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           // ====================================================
-          // RISK LEVEL + SCORE
+          // RISK
           // ====================================================
 
           Row(
             children: [
               Expanded(
-                child: Column(
+                child:
+                Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Safety Risk',
                       style:
                       TextStyle(
-                        fontSize: 12,
+                        fontSize:
+                        12,
                       ),
                     ),
 
@@ -1070,8 +1639,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           decoration:
                           BoxDecoration(
                             shape:
-                            BoxShape
-                                .circle,
+                            BoxShape.circle,
                             color:
                             _riskColor(),
                           ),
@@ -1085,10 +1653,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           _riskLevel,
                           style:
                           TextStyle(
-                            fontSize: 24,
+                            fontSize:
+                            24,
                             fontWeight:
-                            FontWeight
-                                .bold,
+                            FontWeight.bold,
                             color:
                             _riskColor(),
                           ),
@@ -1101,25 +1669,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
               Column(
                 crossAxisAlignment:
-                CrossAxisAlignment
-                    .end,
+                CrossAxisAlignment.end,
                 children: [
                   const Text(
                     'Risk Score',
                     style:
                     TextStyle(
-                      fontSize: 12,
+                      fontSize:
+                      12,
                     ),
                   ),
 
                   Text(
-                    '$_riskScore / 100',
+                    _riskAvailable
+                        ? '$_riskScore / 100'
+                        : '-- / 100',
                     style:
                     const TextStyle(
-                      fontSize: 21,
+                      fontSize:
+                      21,
                       fontWeight:
-                      FontWeight
-                          .bold,
+                      FontWeight.bold,
                     ),
                   ),
                 ],
@@ -1131,12 +1701,28 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 15,
           ),
 
-          LinearProgressIndicator(
-            value:
-            _riskScore / 100,
-            minHeight: 7,
-            color:
-            _riskColor(),
+          ClipRRect(
+            borderRadius:
+            BorderRadius.circular(
+              20,
+            ),
+            child:
+            LinearProgressIndicator(
+              value:
+              _riskAvailable
+                  ? _riskScore /
+                  100
+                  : 0,
+              minHeight:
+              7,
+              color:
+              _riskColor(),
+              backgroundColor:
+              _riskColor()
+                  .withOpacity(
+                0.10,
+              ),
+            ),
           ),
 
           const SizedBox(
@@ -1144,7 +1730,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           // ====================================================
-          // HISTORICAL + ACTIVE
+          // STATISTICS
           // ====================================================
 
           Row(
@@ -1155,7 +1741,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   label:
                   'Historical Cases',
                   value:
-                  '$_historicalCases',
+                  _riskAvailable
+                      ? _formatNumber(
+                    _historicalCases,
+                  )
+                      : '--',
                   icon: Icons
                       .bar_chart_rounded,
                 ),
@@ -1183,7 +1773,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _riskDescription(),
             style:
             const TextStyle(
-              fontSize: 11,
+              fontSize:
+              11,
             ),
           ),
         ],
@@ -1207,24 +1798,27 @@ class _HomeScreenState extends State<HomeScreen> {
         BorderRadius.circular(
           24,
         ),
-        border: Border.all(
-          color: Colors.redAccent
-              .withOpacity(
+        border:
+        Border.all(
+          color:
+          Colors.redAccent.withOpacity(
             0.4,
           ),
         ),
-        color: Colors.redAccent
-            .withOpacity(
+        color:
+        Colors.redAccent.withOpacity(
           0.06,
         ),
       ),
-      child: Column(
+      child:
+      Column(
         children: [
           const Text(
             'Need Emergency Help?',
             style:
             TextStyle(
-              fontSize: 20,
+              fontSize:
+              20,
               fontWeight:
               FontWeight.bold,
             ),
@@ -1245,16 +1839,15 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 18,
           ),
 
-          // ====================================================
-          // SOS BUTTON
-          // ====================================================
-
           GestureDetector(
             onTap:
             _startSOS,
-            child: Container(
-              width: 125,
-              height: 125,
+            child:
+            Container(
+              width:
+              125,
+              height:
+              125,
               decoration:
               BoxDecoration(
                 shape:
@@ -1263,9 +1856,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Colors.redAccent,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors
-                        .redAccent
-                        .withOpacity(
+                    color:
+                    Colors.redAccent.withOpacity(
                       0.3,
                     ),
                     blurRadius:
@@ -1278,13 +1870,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child:
               const Column(
                 mainAxisAlignment:
-                MainAxisAlignment
-                    .center,
+                MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons
                         .sos_rounded,
-                    size: 45,
+                    size:
+                    45,
                     color:
                     Colors.white,
                   ),
@@ -1296,9 +1888,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       color:
                       Colors.white,
                       fontWeight:
-                      FontWeight
-                          .bold,
-                      fontSize: 10,
+                      FontWeight.bold,
+                      fontSize:
+                      10,
                     ),
                   ),
                 ],
@@ -1318,7 +1910,8 @@ class _HomeScreenState extends State<HomeScreen> {
             TextAlign.center,
             style:
             const TextStyle(
-              fontSize: 11,
+              fontSize:
+              11,
             ),
           ),
         ],
@@ -1350,34 +1943,36 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             SizedBox(
-              width: 14,
+              width:
+              14,
             ),
 
             Expanded(
-              child: Column(
+              child:
+              Column(
                 crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                CrossAxisAlignment.start,
                 children: [
                   Text(
                     'No active incidents nearby',
                     style:
                     TextStyle(
                       fontWeight:
-                      FontWeight
-                          .w600,
+                      FontWeight.w600,
                     ),
                   ),
 
                   SizedBox(
-                    height: 4,
+                    height:
+                    4,
                   ),
 
                   Text(
                     'No SafeZone emergency alerts within 1 km.',
                     style:
                     TextStyle(
-                      fontSize: 11,
+                      fontSize:
+                      11,
                     ),
                   ),
                 ],
@@ -1410,11 +2005,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return InkWell(
       onTap:
       _openFullMap,
-      child: Container(
-        height: 180,
+      child:
+      Container(
+        height:
+        180,
         decoration:
         _cardDecoration(),
-        child: Stack(
+        child:
+        Stack(
           children: [
             Positioned.fill(
               child:
@@ -1425,45 +2023,55 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             const Center(
-              child: Icon(
+              child:
+              Icon(
                 Icons
                     .location_on_rounded,
-                size: 48,
+                size:
+                48,
                 color:
                 Colors.blueAccent,
               ),
             ),
 
             Positioned(
-              left: 14,
-              top: 14,
-              child: Container(
+              left:
+              14,
+              top:
+              14,
+              child:
+              Container(
                 padding:
-                const EdgeInsets
-                    .symmetric(
-                  horizontal: 11,
-                  vertical: 7,
+                const EdgeInsets.symmetric(
+                  horizontal:
+                  11,
+                  vertical:
+                  7,
                 ),
                 decoration:
                 BoxDecoration(
-                  color: Colors.black
-                      .withOpacity(
+                  color:
+                  Colors.black.withOpacity(
                     0.65,
                   ),
                   borderRadius:
-                  BorderRadius
-                      .circular(
+                  BorderRadius.circular(
                     10,
                   ),
                 ),
                 child:
-                const Text(
-                  'Live Safety Map',
+                Text(
+                  _currentState != null
+                      ? _shortStateName(
+                    _currentState!,
+                  )
+                      : 'Live Safety Map',
                   style:
-                  TextStyle(
+                  const TextStyle(
                     color:
                     Colors.white,
-                    fontSize: 12,
+                    fontSize:
+                    12,
                   ),
                 ),
               ),
@@ -1480,7 +2088,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildActivityPage() {
     return SafeArea(
-      child: ListView(
+      child:
+      ListView(
         padding:
         const EdgeInsets.all(
           20,
@@ -1490,14 +2099,16 @@ class _HomeScreenState extends State<HomeScreen> {
             'Activity',
             style:
             TextStyle(
-              fontSize: 26,
+              fontSize:
+              26,
               fontWeight:
               FontWeight.bold,
             ),
           ),
 
           const SizedBox(
-            height: 5,
+            height:
+            5,
           ),
 
           const Text(
@@ -1505,15 +2116,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(
-            height: 25,
+            height:
+            25,
           ),
 
           Container(
             padding:
-            const EdgeInsets
-                .symmetric(
-              horizontal: 24,
-              vertical: 50,
+            const EdgeInsets.symmetric(
+              horizontal:
+              24,
+              vertical:
+              50,
             ),
             decoration:
             _cardDecoration(),
@@ -1523,26 +2136,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(
                   Icons
                       .history_rounded,
-                  size: 58,
+                  size:
+                  58,
                 ),
 
                 SizedBox(
-                  height: 15,
+                  height:
+                  15,
                 ),
 
                 Text(
                   'No activity yet',
                   style:
                   TextStyle(
-                    fontSize: 18,
+                    fontSize:
+                    18,
                     fontWeight:
-                    FontWeight
-                        .w600,
+                    FontWeight.w600,
                   ),
                 ),
 
                 SizedBox(
-                  height: 7,
+                  height:
+                  7,
                 ),
 
                 Text(
@@ -1560,12 +2176,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // PROFILE PAGE
+  // PROFILE
   // ============================================================
 
   Widget _buildProfilePage() {
     return SafeArea(
-      child: ListView(
+      child:
+      ListView(
         padding:
         const EdgeInsets.all(
           20,
@@ -1575,32 +2192,33 @@ class _HomeScreenState extends State<HomeScreen> {
             'Profile',
             style:
             TextStyle(
-              fontSize: 26,
+              fontSize:
+              26,
               fontWeight:
               FontWeight.bold,
             ),
           ),
 
           const SizedBox(
-            height: 28,
+            height:
+            28,
           ),
-
-          // ====================================================
-          // AVATAR
-          // ====================================================
 
           Center(
             child:
             CircleAvatar(
-              radius: 48,
-              child: Text(
+              radius:
+              48,
+              child:
+              Text(
                 _userName.isNotEmpty
                     ? _userName[0]
                     .toUpperCase()
                     : 'U',
                 style:
                 const TextStyle(
-                  fontSize: 34,
+                  fontSize:
+                  34,
                   fontWeight:
                   FontWeight.bold,
                 ),
@@ -1609,7 +2227,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(
-            height: 14,
+            height:
+            14,
           ),
 
           Text(
@@ -1618,7 +2237,8 @@ class _HomeScreenState extends State<HomeScreen> {
             TextAlign.center,
             style:
             const TextStyle(
-              fontSize: 21,
+              fontSize:
+              21,
               fontWeight:
               FontWeight.bold,
             ),
@@ -1631,12 +2251,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(
-            height: 30,
+            height:
+            30,
           ),
-
-          // ====================================================
-          // PERSONAL INFORMATION
-          // ====================================================
 
           _profileOption(
             icon:
@@ -1648,10 +2265,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap:
             _openPersonalInformation,
           ),
-
-          // ====================================================
-          // REGISTERED DEVICE
-          // ====================================================
 
           _profileOption(
             icon:
@@ -1666,33 +2279,27 @@ class _HomeScreenState extends State<HomeScreen> {
             _openRegisteredDevice,
           ),
 
-          // ====================================================
-          // NOTIFICATIONS
-          // ====================================================
-
           _profileOption(
-            icon: Icons
-                .notifications_outlined,
+            icon:
+            Icons.notifications_outlined,
             title:
             'Notifications',
             subtitle:
             'Notification preferences',
-            onTap: () {
+            onTap:
+                () {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(
                 const SnackBar(
-                  content: Text(
+                  content:
+                  Text(
                     'Notification settings will be available later.',
                   ),
                 ),
               );
             },
           ),
-
-          // ====================================================
-          // PRIVACY
-          // ====================================================
 
           _profileOption(
             icon:
@@ -1705,13 +2312,9 @@ class _HomeScreenState extends State<HomeScreen> {
             _openPrivacy,
           ),
 
-          // ====================================================
-          // HELP
-          // ====================================================
-
           _profileOption(
-            icon: Icons
-                .help_outline_rounded,
+            icon:
+            Icons.help_outline_rounded,
             title:
             'Help & Support',
             subtitle:
@@ -1721,22 +2324,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(
-            height: 22,
+            height:
+            22,
           ),
 
-          // ====================================================
-          // LOGOUT
-          // ====================================================
-
           SizedBox(
-            height: 50,
+            height:
+            50,
             child:
             OutlinedButton.icon(
               onPressed:
               _logout,
               icon:
               const Icon(
-                Icons.logout_rounded,
+                Icons
+                    .logout_rounded,
               ),
               label:
               const Text(
@@ -1757,15 +2359,18 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
+        builder:
+            (_) =>
             Scaffold(
-              appBar: AppBar(
+              appBar:
+              AppBar(
                 title:
                 const Text(
                   'Safety Map',
                 ),
               ),
-              body: Stack(
+              body:
+              Stack(
                 children: [
                   Positioned.fill(
                     child:
@@ -1775,35 +2380,66 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  const Center(
-                    child: Column(
+                  Center(
+                    child:
+                    Column(
                       mainAxisSize:
                       MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons
                               .location_on_rounded,
-                          size: 65,
+                          size:
+                          65,
                           color:
                           Colors.blueAccent,
                         ),
 
-                        SizedBox(
-                          height: 10,
+                        const SizedBox(
+                          height:
+                          10,
                         ),
 
                         Text(
-                          'Live Safety Map',
+                          _currentState != null
+                              ? _shortStateName(
+                            _currentState!,
+                          )
+                              : 'Live Safety Map',
                           style:
-                          TextStyle(
-                            fontSize: 20,
+                          const TextStyle(
+                            fontSize:
+                            20,
                             fontWeight:
-                            FontWeight
-                                .bold,
+                            FontWeight.bold,
                           ),
                         ),
 
-                        Text(
+                        const SizedBox(
+                          height:
+                          4,
+                        ),
+
+                        if (_currentLatitude !=
+                            null &&
+                            _currentLongitude !=
+                                null)
+                          Text(
+                            '${_currentLatitude!.toStringAsFixed(5)}, '
+                                '${_currentLongitude!.toStringAsFixed(5)}',
+                            style:
+                            const TextStyle(
+                              fontSize:
+                              11,
+                            ),
+                          ),
+
+                        const SizedBox(
+                          height:
+                          4,
+                        ),
+
+                        const Text(
                           'Real map integration will be connected later.',
                         ),
                       ],
@@ -1828,18 +2464,21 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Icon(
           icon,
-          size: 20,
+          size:
+          20,
         ),
 
         const SizedBox(
-          width: 8,
+          width:
+          8,
         ),
 
         Text(
           title,
           style:
           const TextStyle(
-            fontSize: 18,
+            fontSize:
+            18,
             fontWeight:
             FontWeight.bold,
           ),
@@ -1862,7 +2501,8 @@ class _HomeScreenState extends State<HomeScreen> {
       Theme.of(context)
           .colorScheme
           .surfaceContainer,
-      border: Border.all(
+      border:
+      Border.all(
         color:
         Theme.of(context)
             .colorScheme
@@ -1884,18 +2524,21 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Icon(
           icon,
-          size: 20,
+          size:
+          20,
         ),
 
         const SizedBox(
-          height: 5,
+          height:
+          5,
         ),
 
         Text(
           value,
           style:
           const TextStyle(
-            fontSize: 20,
+            fontSize:
+            20,
             fontWeight:
             FontWeight.bold,
           ),
@@ -1907,7 +2550,8 @@ class _HomeScreenState extends State<HomeScreen> {
           TextAlign.center,
           style:
           const TextStyle(
-            fontSize: 10,
+            fontSize:
+            10,
           ),
         ),
       ],
@@ -1926,10 +2570,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return ListTile(
       contentPadding:
-      const EdgeInsets
-          .symmetric(
-        horizontal: 4,
-        vertical: 2,
+      const EdgeInsets.symmetric(
+        horizontal:
+        4,
+        vertical:
+        2,
       ),
       leading:
       Icon(
@@ -1945,7 +2590,8 @@ class _HomeScreenState extends State<HomeScreen> {
         subtitle,
         style:
         const TextStyle(
-          fontSize: 11,
+          fontSize:
+          11,
         ),
       )
           : null,
@@ -1960,24 +2606,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
-  // RISK COLOR
+  // RISK COLOUR
   // ============================================================
 
   Color _riskColor() {
-    switch (
-    _riskLevel.toUpperCase()) {
+    if (!_riskAvailable) {
+      return Colors.grey;
+    }
+
+    switch (_riskLevel.toUpperCase()) {
       case 'VERY HIGH':
-        return Colors.red;
+        return Colors.red.shade500;
 
       case 'HIGH':
-        return Colors.orange;
+        return Colors.orange.shade600;
 
       case 'MODERATE':
       case 'MEDIUM':
-        return Colors.amber;
+        return Colors.amber.shade600;
+
+      case 'LOW':
+        return Colors.green.shade500;
 
       default:
-        return Colors.green;
+        return Colors.grey;
     }
   }
 
@@ -1986,29 +2638,79 @@ class _HomeScreenState extends State<HomeScreen> {
   // ============================================================
 
   String _riskDescription() {
-    switch (
-    _riskLevel.toUpperCase()) {
+    if (!_riskAvailable) {
+      if (_locationLoading) {
+        return 'Detecting your current area and loading historical safety information.';
+      }
+
+      return 'Current area risk information is unavailable until your location can be determined.';
+    }
+
+    switch (_riskLevel.toUpperCase()) {
       case 'VERY HIGH':
-        return 'Very high historical risk detected. Exercise increased caution in this area.';
+        return 'Historical crime data indicates a significantly elevated population-adjusted risk compared with the Malaysia benchmark.';
 
       case 'HIGH':
-        return 'Higher historical risk detected. Stay alert and avoid isolated areas.';
+        return 'Historical crime data indicates an elevated population-adjusted risk compared with the Malaysia benchmark.';
 
       case 'MODERATE':
       case 'MEDIUM':
-        return 'Moderate historical risk detected. Remain aware of your surroundings.';
+        return 'Historical crime data indicates a moderate population-adjusted risk for this area.';
+
+      case 'LOW':
+      default:
+        return 'Historical crime data indicates a comparatively lower population-adjusted risk for this area.';
+    }
+  }
+
+  // ============================================================
+  // SHORT STATE NAME
+  // ============================================================
+
+  String _shortStateName(
+      String state,
+      ) {
+    switch (state) {
+      case 'W.P. Kuala Lumpur':
+        return 'Kuala Lumpur';
+
+      case 'W.P. Putrajaya':
+        return 'Putrajaya';
+
+      case 'W.P. Labuan':
+        return 'Labuan';
 
       default:
-        return 'This area currently shows a relatively low historical safety risk.';
+        return state;
     }
+  }
+
+  // ============================================================
+  // NUMBER FORMAT
+  // ============================================================
+
+  String _formatNumber(
+      int value,
+      ) {
+    return value
+        .toString()
+        .replaceAllMapped(
+      RegExp(
+        r'\B(?=(\d{3})+(?!\d))',
+      ),
+          (
+          match,
+          ) =>
+      ',',
+    );
   }
 }
 
 // ============================================================
-// TEMPORARY MAP
+// TEMPORARY SAFETY MAP BACKGROUND
 //
-// This remains unchanged for now.
-// Later we replace only this with the real normal map.
+// We keep this for now.
+// Later it will be replaced with the real live map.
 // ============================================================
 
 class _MapBackgroundPainter
@@ -2121,8 +2823,7 @@ class _MapBackgroundPainter
 
   @override
   bool shouldRepaint(
-      covariant CustomPainter
-      oldDelegate,
+      covariant CustomPainter oldDelegate,
       ) {
     return false;
   }

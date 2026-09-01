@@ -1,5 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- ====================================================== -->
+    <!-- LOCATION PERMISSIONS -->
+    <!-- ====================================================== -->
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <application
         android:label="safezone_my"
         android:name="${applicationName}"
@@ -19,13 +26,20 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <!-- Normal App Launcher -->
+            <!-- ================================================== -->
+            <!-- NORMAL APP LAUNCHER -->
+            <!-- ================================================== -->
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Supabase Email Verification Deep Link -->
+            <!-- ================================================== -->
+            <!-- SUPABASE EMAIL VERIFICATION DEEP LINK -->
+            <!-- safezone://verify-email -->
+            <!-- ================================================== -->
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -37,7 +51,11 @@
                     android:host="verify-email" />
             </intent-filter>
 
-            <!-- Supabase Reset Password Deep Link -->
+            <!-- ================================================== -->
+            <!-- SUPABASE RESET PASSWORD DEEP LINK -->
+            <!-- safezone://reset-password -->
+            <!-- ================================================== -->
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -51,12 +69,19 @@
 
         </activity>
 
-        <!-- Don't delete this -->
+        <!-- ====================================================== -->
+        <!-- DON'T DELETE THIS -->
+        <!-- ====================================================== -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
     </application>
+
+    <!-- ======================================================== -->
+    <!-- QUERIES -->
+    <!-- ======================================================== -->
 
     <queries>
         <intent>
