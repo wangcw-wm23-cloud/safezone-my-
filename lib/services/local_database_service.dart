@@ -11,10 +11,6 @@ class LocalDatabaseService {
 
   static Database? _database;
 
-  // ============================================================
-  // DATABASE
-  // ============================================================
-
   Future<Database> get database async {
     if (_database != null) {
       return _database!;
@@ -47,32 +43,19 @@ class LocalDatabaseService {
   }
 
   // ============================================================
-  // CREATE TABLES
+  // CREATE DATABASE
   // ============================================================
 
   Future<void> _createDatabase(
       Database db,
       int version,
       ) async {
-    // ==========================================================
-    // 1. ACTIVITY HISTORY
-    //
-    // Local copy of:
-    // - SOS requested by user
-    // - SOS responded to by user
-    //
-    // Used by Activity page.
-    // ==========================================================
-
     await db.execute(
       '''
-      CREATE TABLE activity_history (
+      CREATE TABLE IF NOT EXISTS activity_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-
         user_id TEXT NOT NULL,
-
         incident_id TEXT,
-
         activity_type TEXT NOT NULL
           CHECK (
             activity_type IN (
@@ -80,20 +63,13 @@ class LocalDatabaseService {
               'responded'
             )
           ),
-
         status TEXT NOT NULL,
-
         title TEXT,
-
         location TEXT,
-
         latitude REAL,
         longitude REAL,
-
         created_at TEXT NOT NULL,
-
         updated_at TEXT,
-
         synced INTEGER NOT NULL DEFAULT 0
           CHECK (
             synced IN (0, 1)
@@ -102,32 +78,17 @@ class LocalDatabaseService {
       ''',
     );
 
-    // ==========================================================
-    // 2. CACHED GOVERNMENT CRIME DATA
-    //
-    // Stores data.gov.my crime data locally.
-    // Allows Safety Insights to show previous data offline.
-    // ==========================================================
-
     await db.execute(
       '''
-      CREATE TABLE cached_crime_data (
+      CREATE TABLE IF NOT EXISTS cached_crime_data (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-
         state TEXT NOT NULL,
-
         district TEXT NOT NULL,
-
         year INTEGER NOT NULL,
-
         category TEXT NOT NULL,
-
         crime_type TEXT NOT NULL,
-
         crimes INTEGER NOT NULL DEFAULT 0,
-
         cached_at TEXT NOT NULL,
-
         UNIQUE (
           state,
           district,
@@ -139,67 +100,44 @@ class LocalDatabaseService {
       ''',
     );
 
-    // ==========================================================
-    // 3. PENDING SYNC
-    //
-    // Stores actions that failed because the device
-    // was offline.
-    //
-    // Later:
-    // no internet
-    // -> save here
-    // -> internet returns
-    // -> sync to Supabase
-    // ==========================================================
-
     await db.execute(
       '''
-      CREATE TABLE pending_sync (
+      CREATE TABLE IF NOT EXISTS pending_sync (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-
         user_id TEXT NOT NULL,
-
         action TEXT NOT NULL,
-
         table_name TEXT NOT NULL,
-
         payload TEXT NOT NULL,
-
         created_at TEXT NOT NULL,
-
         retry_count INTEGER NOT NULL DEFAULT 0
       )
       ''',
     );
 
-    // ==========================================================
-    // INDEXES
-    // ==========================================================
-
     await db.execute(
       '''
-      CREATE INDEX idx_activity_user
+      CREATE INDEX IF NOT EXISTS idx_activity_user
       ON activity_history (user_id)
       ''',
     );
 
     await db.execute(
       '''
-      CREATE INDEX idx_activity_incident
+      CREATE INDEX IF NOT EXISTS idx_activity_incident
       ON activity_history (incident_id)
       ''',
     );
 
     await db.execute(
       '''
-      CREATE INDEX idx_activity_created
+      CREATE INDEX IF NOT EXISTS idx_activity_created
       ON activity_history (created_at DESC)
       ''',
     );
 
     await db.execute(
       '''
-      CREATE INDEX idx_crime_area
+      CREATE INDEX IF NOT EXISTS idx_crime_area
       ON cached_crime_data (
         state,
         district,
@@ -210,14 +148,17 @@ class LocalDatabaseService {
 
     await db.execute(
       '''
-      CREATE INDEX idx_pending_user
+      CREATE INDEX IF NOT EXISTS idx_pending_user
       ON pending_sync (user_id)
       ''',
     );
   }
 
   // ============================================================
-  // ACTIVITY HISTORY
+  // INSERT OR UPDATE ACTIVITY
+  //
+  // If the same incident already exists, update it instead of
+  // creating a duplicate Activity record.
   // ============================================================
 
   Future<int> insertActivity({
@@ -233,6 +174,48 @@ class LocalDatabaseService {
   }) async {
     final db = await database;
 
+    final now = DateTime.now()
+        .toUtc()
+        .toIso8601String();
+
+    if (incidentId != null &&
+        incidentId.trim().isNotEmpty) {
+      final existing = await db.query(
+        'activity_history',
+        columns: ['id'],
+        where:
+        'user_id = ? AND incident_id = ? AND activity_type = ?',
+        whereArgs: [
+          userId,
+          incidentId,
+          activityType,
+        ],
+        limit: 1,
+      );
+
+      if (existing.isNotEmpty) {
+        final id =
+        existing.first['id'] as int;
+
+        await db.update(
+          'activity_history',
+          {
+            'status': status,
+            'title': title,
+            'location': location,
+            'latitude': latitude,
+            'longitude': longitude,
+            'updated_at': now,
+            'synced': synced ? 1 : 0,
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+
+        return id;
+      }
+    }
+
     return db.insert(
       'activity_history',
       {
@@ -244,21 +227,16 @@ class LocalDatabaseService {
         'location': location,
         'latitude': latitude,
         'longitude': longitude,
-        'created_at':
-        DateTime.now()
-            .toUtc()
-            .toIso8601String(),
-        'updated_at':
-        DateTime.now()
-            .toUtc()
-            .toIso8601String(),
-        'synced':
-        synced ? 1 : 0,
+        'created_at': now,
+        'updated_at': now,
+        'synced': synced ? 1 : 0,
       },
-      conflictAlgorithm:
-      ConflictAlgorithm.replace,
     );
   }
+
+  // ============================================================
+  // GET ACTIVITIES
+  // ============================================================
 
   Future<List<Map<String, dynamic>>>
   getActivities(
@@ -269,13 +247,14 @@ class LocalDatabaseService {
     return db.query(
       'activity_history',
       where: 'user_id = ?',
-      whereArgs: [
-        userId,
-      ],
-      orderBy:
-      'created_at DESC',
+      whereArgs: [userId],
+      orderBy: 'created_at DESC',
     );
   }
+
+  // ============================================================
+  // UPDATE USING LOCAL ID
+  // ============================================================
 
   Future<void> updateActivityStatus({
     required int id,
@@ -287,8 +266,7 @@ class LocalDatabaseService {
     final values =
     <String, dynamic>{
       'status': status,
-      'updated_at':
-      DateTime.now()
+      'updated_at': DateTime.now()
           .toUtc()
           .toIso8601String(),
     };
@@ -302,8 +280,43 @@ class LocalDatabaseService {
       'activity_history',
       values,
       where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ============================================================
+  // UPDATE USING SUPABASE INCIDENT ID
+  // ============================================================
+
+  Future<void> updateActivityByIncident({
+    required String userId,
+    required String incidentId,
+    required String status,
+    bool? synced,
+  }) async {
+    final db = await database;
+
+    final values =
+    <String, dynamic>{
+      'status': status,
+      'updated_at': DateTime.now()
+          .toUtc()
+          .toIso8601String(),
+    };
+
+    if (synced != null) {
+      values['synced'] =
+      synced ? 1 : 0;
+    }
+
+    await db.update(
+      'activity_history',
+      values,
+      where:
+      'user_id = ? AND incident_id = ?',
       whereArgs: [
-        id,
+        userId,
+        incidentId,
       ],
     );
   }
@@ -316,14 +329,12 @@ class LocalDatabaseService {
     await db.delete(
       'activity_history',
       where: 'user_id = ?',
-      whereArgs: [
-        userId,
-      ],
+      whereArgs: [userId],
     );
   }
 
   // ============================================================
-  // DATA.GOV.MY CACHE
+  // CRIME CACHE
   // ============================================================
 
   Future<void> cacheCrimeRecord({
@@ -345,8 +356,7 @@ class LocalDatabaseService {
         'category': category,
         'crime_type': crimeType,
         'crimes': crimes,
-        'cached_at':
-        DateTime.now()
+        'cached_at': DateTime.now()
             .toUtc()
             .toIso8601String(),
       },
@@ -360,30 +370,24 @@ class LocalDatabaseService {
       ) async {
     final db = await database;
 
-    final batch =
-    db.batch();
+    final batch = db.batch();
 
-    for (final record
-    in records) {
+    final now = DateTime.now()
+        .toUtc()
+        .toIso8601String();
+
+    for (final record in records) {
       batch.insert(
         'cached_crime_data',
         {
-          'state':
-          record['state'],
-          'district':
-          record['district'],
-          'year':
-          record['year'],
-          'category':
-          record['category'],
+          'state': record['state'],
+          'district': record['district'],
+          'year': record['year'],
+          'category': record['category'],
           'crime_type':
           record['crime_type'],
-          'crimes':
-          record['crimes'],
-          'cached_at':
-          DateTime.now()
-              .toUtc()
-              .toIso8601String(),
+          'crimes': record['crimes'],
+          'cached_at': now,
         },
         conflictAlgorithm:
         ConflictAlgorithm.replace,
@@ -403,16 +407,12 @@ class LocalDatabaseService {
     final db = await database;
 
     if (district == null ||
-        district ==
-            'All Districts') {
+        district == 'All Districts') {
       return db.query(
         'cached_crime_data',
         where: 'state = ?',
-        whereArgs: [
-          state,
-        ],
-        orderBy:
-        'year ASC',
+        whereArgs: [state],
+        orderBy: 'year ASC',
       );
     }
 
@@ -424,8 +424,7 @@ class LocalDatabaseService {
         state,
         district,
       ],
-      orderBy:
-      'year ASC',
+      orderBy: 'year ASC',
     );
   }
 
@@ -438,7 +437,10 @@ class LocalDatabaseService {
   }
 
   // ============================================================
-  // PENDING SYNC
+  // PENDING SYNC INFRASTRUCTURE
+  //
+  // This table is prepared for future offline operations.
+  // It does not mean an offline SOS was successfully broadcast.
   // ============================================================
 
   Future<int> addPendingSync({
@@ -455,12 +457,8 @@ class LocalDatabaseService {
         'user_id': userId,
         'action': action,
         'table_name': tableName,
-        'payload':
-        jsonEncode(
-          payload,
-        ),
-        'created_at':
-        DateTime.now()
+        'payload': jsonEncode(payload),
+        'created_at': DateTime.now()
             .toUtc()
             .toIso8601String(),
         'retry_count': 0,
@@ -474,15 +472,11 @@ class LocalDatabaseService {
       ) async {
     final db = await database;
 
-    final rows =
-    await db.query(
+    final rows = await db.query(
       'pending_sync',
       where: 'user_id = ?',
-      whereArgs: [
-        userId,
-      ],
-      orderBy:
-      'created_at ASC',
+      whereArgs: [userId],
+      orderBy: 'created_at ASC',
     );
 
     return rows.map(
@@ -495,12 +489,10 @@ class LocalDatabaseService {
         try {
           result['payload_data'] =
               jsonDecode(
-                row['payload']
-                    .toString(),
+                row['payload'].toString(),
               );
         } catch (_) {
-          result['payload_data'] =
-          null;
+          result['payload_data'] = null;
         }
 
         return result;
@@ -519,9 +511,7 @@ class LocalDatabaseService {
       SET retry_count = retry_count + 1
       WHERE id = ?
       ''',
-      [
-        id,
-      ],
+      [id],
     );
   }
 
@@ -533,9 +523,7 @@ class LocalDatabaseService {
     await db.delete(
       'pending_sync',
       where: 'id = ?',
-      whereArgs: [
-        id,
-      ],
+      whereArgs: [id],
     );
   }
 
@@ -547,14 +535,12 @@ class LocalDatabaseService {
     await db.delete(
       'pending_sync',
       where: 'user_id = ?',
-      whereArgs: [
-        userId,
-      ],
+      whereArgs: [userId],
     );
   }
 
   // ============================================================
-  // DATABASE INFORMATION / TEST
+  // DATABASE STATS
   // ============================================================
 
   Future<Map<String, int>>
@@ -595,12 +581,9 @@ class LocalDatabaseService {
             0;
 
     return {
-      'activity_history':
-      activity,
-      'cached_crime_data':
-      crime,
-      'pending_sync':
-      pending,
+      'activity_history': activity,
+      'cached_crime_data': crime,
+      'pending_sync': pending,
     };
   }
 
@@ -609,6 +592,7 @@ class LocalDatabaseService {
 
     if (db != null) {
       await db.close();
+
       _database = null;
     }
   }

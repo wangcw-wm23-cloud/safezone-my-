@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'device_binding_service.dart';
+
 class SessionManager {
   SessionManager._();
 
@@ -14,47 +16,31 @@ class SessionManager {
   static const String _lastActiveKey =
       'safezone_last_active_at';
 
-  // ============================================================
-  // 7 DAYS INACTIVITY
-  // ============================================================
-
   static const Duration inactivityLimit =
-  Duration(
-    days: 7,
-  );
+  Duration(days: 7);
 
   final SupabaseClient supabase =
       Supabase.instance.client;
 
   // ============================================================
-  // MARK USER ACTIVE
-  //
-  // Call this:
-  // - after successful login
-  // - when app startup session is accepted
+  // MARK ACTIVE
   // ============================================================
 
   Future<void> markActive() async {
-    final now =
-    DateTime.now().toUtc();
+    final now = DateTime.now().toUtc();
 
     await _storage.write(
       key: _lastActiveKey,
       value: now.toIso8601String(),
     );
-
-    debugPrint(
-      'SESSION ACTIVE: ${now.toIso8601String()}',
-    );
   }
 
   // ============================================================
-  // READ LAST ACTIVE
+  // LAST ACTIVE
   // ============================================================
 
   Future<DateTime?> getLastActive() async {
-    final value =
-    await _storage.read(
+    final value = await _storage.read(
       key: _lastActiveKey,
     );
 
@@ -63,47 +49,34 @@ class SessionManager {
       return null;
     }
 
-    return DateTime.tryParse(
-      value,
-    );
+    return DateTime.tryParse(value);
   }
 
   // ============================================================
-  // CHECK IF USER HAS BEEN INACTIVE > 7 DAYS
+  // INACTIVITY
   // ============================================================
 
   Future<bool> isInactiveTooLong() async {
-    final lastActive =
-    await getLastActive();
+    final lastActive = await getLastActive();
 
     if (lastActive == null) {
       return false;
     }
 
-    final now =
-    DateTime.now().toUtc();
-
     final difference =
-    now.difference(
+    DateTime.now().toUtc().difference(
       lastActive.toUtc(),
     );
 
-    return difference >
-        inactivityLimit;
+    return difference > inactivityLimit;
   }
 
   // ============================================================
-  // VALIDATE CURRENT SESSION
-  //
-  // true:
-  // keep user logged in
-  //
-  // false:
-  // login required
+  // VALIDATE SESSION
   // ============================================================
 
   Future<bool> validateSession() async {
-    final session =
+    Session? session =
         supabase.auth.currentSession;
 
     if (session == null) {
@@ -112,17 +85,45 @@ class SessionManager {
       return false;
     }
 
-    final expiredByInactivity =
-    await isInactiveTooLong();
+    if (session.isExpired) {
+      try {
+        final response =
+        await supabase.auth
+            .refreshSession();
 
-    if (expiredByInactivity) {
-      debugPrint(
-        'SESSION EXPIRED: more than 7 days inactive.',
-      );
+        session = response.session;
 
-      await supabase.auth.signOut();
+        if (session == null) {
+          await logout();
 
-      await clearLocalSession();
+          return false;
+        }
+      } catch (e) {
+        debugPrint(
+          'SESSION REFRESH ERROR: $e',
+        );
+
+        await logout();
+
+        return false;
+      }
+    }
+
+    if (await isInactiveTooLong()) {
+      await logout();
+
+      return false;
+    }
+
+    // No binding = allowed.
+    // Same device = allowed.
+    // Different device = rejected.
+    final deviceAllowed =
+    await DeviceBindingService.instance
+        .checkDeviceBinding();
+
+    if (!deviceAllowed) {
+      await logout();
 
       return false;
     }
@@ -139,14 +140,14 @@ class SessionManager {
   Future<void> logout() async {
     try {
       await supabase.auth.signOut();
+    } catch (e) {
+      debugPrint(
+        'LOGOUT ERROR: $e',
+      );
     } finally {
       await clearLocalSession();
     }
   }
-
-  // ============================================================
-  // CLEAR LOCAL SESSION INFO
-  // ============================================================
 
   Future<void> clearLocalSession() async {
     await _storage.delete(

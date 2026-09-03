@@ -1,604 +1,417 @@
 import 'package:flutter/material.dart';
 
+import '../services/sos_service.dart';
+import 'active_sos_screen.dart';
+
+// ============================================================
+// SOS SCREEN
+//
+// User selects one emergency category,
+// then presses SEND SOS.
+//
+// No additional confirmation screen.
+// ============================================================
+
 class SosScreen extends StatefulWidget {
-  const SosScreen({super.key});
+  const SosScreen({
+    super.key,
+  });
 
   @override
-  State<SosScreen> createState() => _SosScreenState();
+  State<SosScreen> createState() =>
+      _SosScreenState();
 }
 
-class _SosScreenState extends State<SosScreen> {
-  // ============================================================
-  // DEFAULT CATEGORY
-  //
-  // User can immediately send SOS without spending time
-  // deciding which emergency category applies.
-  // ============================================================
+class _SosScreenState
+    extends State<SosScreen> {
+  String _selectedCategory =
+      'unsure';
 
-  SosCategory _selectedCategory = SosCategory.unsure;
-
-  bool _isSending = false;
+  bool _sending = false;
 
   // ============================================================
-  // SELECT CATEGORY
+  // CATEGORIES
   // ============================================================
 
-  void _selectCategory(
-      SosCategory category,
-      ) {
-    setState(() {
-      _selectedCategory = category;
-    });
-  }
+  final List<_SosCategoryOption>
+  _categories = const [
+    _SosCategoryOption(
+      value:
+      'medical',
+      title:
+      'Medical Emergency',
+      subtitle:
+      'Serious illness, injury or urgent medical help',
+      icon:
+      Icons.medical_services_outlined,
+      color:
+      Colors.redAccent,
+    ),
+
+    _SosCategoryOption(
+      value:
+      'crime',
+      title:
+      'Crime / Personal Threat',
+      subtitle:
+      'Crime, violence, harassment or immediate threat',
+      icon:
+      Icons.shield_outlined,
+      color:
+      Colors.deepOrange,
+    ),
+
+    _SosCategoryOption(
+      value:
+      'accident',
+      title:
+      'Accident',
+      subtitle:
+      'Road accident or other serious accident',
+      icon:
+      Icons.car_crash_outlined,
+      color:
+      Colors.blue,
+    ),
+
+    _SosCategoryOption(
+      value:
+      'fire_hazard',
+      title:
+      'Fire / Hazard',
+      subtitle:
+      'Fire, smoke or another dangerous hazard',
+      icon:
+      Icons.local_fire_department_outlined,
+      color:
+      Colors.orange,
+    ),
+
+    _SosCategoryOption(
+      value:
+      'other',
+      title:
+      'Other Emergency',
+      subtitle:
+      'Another emergency situation requiring assistance',
+      icon:
+      Icons.warning_amber_rounded,
+      color:
+      Colors.purple,
+    ),
+
+    _SosCategoryOption(
+      value:
+      'unsure',
+      title:
+      'Not Sure / Need Help',
+      subtitle:
+      'Use this if you are unsure which category applies',
+      icon:
+      Icons.sos_rounded,
+      color:
+      Colors.red,
+    ),
+  ];
 
   // ============================================================
   // SEND SOS
-  //
-  // GPS + Supabase backend will be connected later.
   // ============================================================
 
   Future<void> _sendSos() async {
-    if (_isSending) return;
+    if (_sending) {
+      return;
+    }
 
     setState(() {
-      _isSending = true;
+      _sending = true;
     });
 
     try {
-      // ========================================================
-      // FUTURE IMPLEMENTATION
-      //
-      // 1. Get current GPS
-      // 2. Create sos_incidents record
-      // 3. Save category
-      // 4. Broadcast to nearby SafeZone users
-      // 5. Start live location tracking
-      //
-      // Example:
-      //
-      // await supabase.from('sos_incidents').insert({
-      //   'user_id': user.id,
-      //   'category': _selectedCategory.code,
-      //   'latitude': position.latitude,
-      //   'longitude': position.longitude,
-      //   'status': 'active',
-      // });
-      // ========================================================
-
-      debugPrint(
-        'SOS CATEGORY: ${_selectedCategory.code}',
-      );
-
-      await Future.delayed(
-        const Duration(
-          milliseconds: 500,
-        ),
+      final incident =
+      await SosService.instance
+          .createSos(
+        category:
+        _selectedCategory,
       );
 
       if (!mounted) return;
 
-      // ========================================================
-      // TEMPORARY SUCCESS MESSAGE
-      //
-      // Remove this when real SOS backend is connected.
-      // ========================================================
-
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return AlertDialog(
-            icon: const Icon(
-              Icons.sos_rounded,
-              color: Colors.red,
-              size: 52,
-            ),
-            title: const Text(
-              'SOS Activated',
-              textAlign: TextAlign.center,
-            ),
-            content: Text(
-              '${_selectedCategory.label}\n\n'
-                  'The SOS backend, live location and nearby-user '
-                  'broadcast will be connected in the next stage.',
-              textAlign: TextAlign.center,
-            ),
-            actionsAlignment:
-            MainAxisAlignment.center,
-            actions: [
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(
-                    dialogContext,
-                  );
-                },
-                child: const Text(
-                  'OK',
-                ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              ActiveSosScreen(
+                incident:
+                incident,
               ),
-            ],
-          );
-        },
+        ),
+      );
+    } catch (e) {
+      debugPrint(
+        'SEND SOS ERROR: $e',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content:
+          Text(
+            _cleanError(
+              e,
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) {
         setState(() {
-          _isSending = false;
+          _sending = false;
         });
       }
     }
   }
 
+  String _cleanError(
+      Object error,
+      ) {
+    return error
+        .toString()
+        .replaceFirst(
+      'Exception: ',
+      '',
+    );
+  }
+
   // ============================================================
-  // UI
+  // BUILD
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
-
+  Widget build(
+      BuildContext context,
+      ) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
+      appBar:
+      AppBar(
+        title:
+        const Text(
           'Emergency SOS',
         ),
       ),
-      body: SafeArea(
-        child: Column(
+      body:
+      SafeArea(
+        child:
+        Column(
           children: [
             // ==================================================
-            // SCROLLABLE CONTENT
+            // HEADER
             // ==================================================
 
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  16,
-                  20,
-                  20,
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
-                  children: [
-                    // ==========================================
-                    // HEADER
-                    // ==========================================
-
-                    Container(
-                      padding:
-                      const EdgeInsets.all(
-                        20,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius:
-                        BorderRadius.circular(
-                          22,
-                        ),
-                        color: Colors.red
-                            .withOpacity(
-                          0.08,
-                        ),
-                        border: Border.all(
-                          color: Colors.red
-                              .withOpacity(
-                            0.25,
-                          ),
-                        ),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(
-                            Icons.sos_rounded,
-                            color: Colors.red,
-                            size: 58,
-                          ),
-
-                          SizedBox(
-                            height: 10,
-                          ),
-
-                          Text(
-                            'Emergency Assistance',
-                            textAlign:
-                            TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight:
-                              FontWeight.bold,
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: 7,
-                          ),
-
-                          Text(
-                            'Choose the emergency type if possible, '
-                                'then send your SOS alert.',
-                            textAlign:
-                            TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
+            Padding(
+              padding:
+              const EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                16,
+              ),
+              child:
+              Column(
+                children: [
+                  Container(
+                    width:
+                    66,
+                    height:
+                    66,
+                    decoration:
+                    BoxDecoration(
+                      shape:
+                      BoxShape.circle,
+                      color:
+                      Colors.red.withOpacity(
+                        0.10,
                       ),
                     ),
-
-                    const SizedBox(
-                      height: 24,
+                    child:
+                    const Icon(
+                      Icons
+                          .sos_rounded,
+                      color:
+                      Colors.redAccent,
+                      size:
+                      36,
                     ),
+                  ),
 
-                    // ==========================================
-                    // CATEGORY TITLE
-                    // ==========================================
+                  const SizedBox(
+                    height:
+                    13,
+                  ),
 
-                    const Text(
-                      'Emergency Type',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight:
-                        FontWeight.bold,
-                      ),
+                  const Text(
+                    'What kind of help do you need?',
+                    textAlign:
+                    TextAlign.center,
+                    style:
+                    TextStyle(
+                      fontSize:
+                      20,
+                      fontWeight:
+                      FontWeight.bold,
                     ),
+                  ),
 
-                    const SizedBox(
-                      height: 5,
+                  const SizedBox(
+                    height:
+                    5,
+                  ),
+
+                  const Text(
+                    'Choose the closest option. If you are unsure, select Not Sure / Need Help.',
+                    textAlign:
+                    TextAlign.center,
+                    style:
+                    TextStyle(
+                      fontSize:
+                      10,
                     ),
-
-                    const Text(
-                      'Select the option that best describes your situation.',
-                      style: TextStyle(
-                        fontSize: 11,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 15,
-                    ),
-
-                    // ==========================================
-                    // MEDICAL
-                    // ==========================================
-
-                    _SosCategoryCard(
-                      category:
-                      SosCategory.medical,
-                      selected:
-                      _selectedCategory ==
-                          SosCategory
-                              .medical,
-                      onTap: () {
-                        _selectCategory(
-                          SosCategory.medical,
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    // ==========================================
-                    // CRIME
-                    // ==========================================
-
-                    _SosCategoryCard(
-                      category:
-                      SosCategory.crime,
-                      selected:
-                      _selectedCategory ==
-                          SosCategory.crime,
-                      onTap: () {
-                        _selectCategory(
-                          SosCategory.crime,
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    // ==========================================
-                    // ACCIDENT
-                    // ==========================================
-
-                    _SosCategoryCard(
-                      category:
-                      SosCategory.accident,
-                      selected:
-                      _selectedCategory ==
-                          SosCategory
-                              .accident,
-                      onTap: () {
-                        _selectCategory(
-                          SosCategory.accident,
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    // ==========================================
-                    // FIRE / HAZARD
-                    // ==========================================
-
-                    _SosCategoryCard(
-                      category:
-                      SosCategory.fireHazard,
-                      selected:
-                      _selectedCategory ==
-                          SosCategory
-                              .fireHazard,
-                      onTap: () {
-                        _selectCategory(
-                          SosCategory
-                              .fireHazard,
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    // ==========================================
-                    // OTHER
-                    // ==========================================
-
-                    _SosCategoryCard(
-                      category:
-                      SosCategory.other,
-                      selected:
-                      _selectedCategory ==
-                          SosCategory.other,
-                      onTap: () {
-                        _selectCategory(
-                          SosCategory.other,
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    // ==========================================
-                    // NOT SURE
-                    // ==========================================
-
-                    _SosCategoryCard(
-                      category:
-                      SosCategory.unsure,
-                      selected:
-                      _selectedCategory ==
-                          SosCategory.unsure,
-                      onTap: () {
-                        _selectCategory(
-                          SosCategory.unsure,
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 22,
-                    ),
-
-                    // ==========================================
-                    // WHAT WILL HAPPEN
-                    // ==========================================
-
-                    Container(
-                      padding:
-                      const EdgeInsets.all(
-                        17,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius:
-                        BorderRadius.circular(
-                          18,
-                        ),
-                        color: colorScheme
-                            .surfaceContainer,
-                        border: Border.all(
-                          color: colorScheme
-                              .outlineVariant,
-                        ),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                        children: [
-                          Text(
-                            'When you send SOS',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight:
-                              FontWeight.bold,
-                            ),
-                          ),
-
-                          SizedBox(
-                            height: 14,
-                          ),
-
-                          _SosInformationRow(
-                            icon: Icons
-                                .location_on_outlined,
-                            text:
-                            'Your current location will be shared.',
-                          ),
-
-                          SizedBox(
-                            height: 13,
-                          ),
-
-                          _SosInformationRow(
-                            icon: Icons
-                                .people_outline_rounded,
-                            text:
-                            'Eligible SafeZone users nearby may receive your alert.',
-                          ),
-
-                          SizedBox(
-                            height: 13,
-                          ),
-
-                          _SosInformationRow(
-                            icon: Icons
-                                .share_location_outlined,
-                            text:
-                            'Your live location may be shared while the SOS remains active.',
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 16,
-                    ),
-
-                    // ==========================================
-                    // 999 WARNING
-                    // ==========================================
-
-                    Container(
-                      padding:
-                      const EdgeInsets.all(
-                        15,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius:
-                        BorderRadius.circular(
-                          16,
-                        ),
-                        color: Colors.amber
-                            .withOpacity(
-                          0.08,
-                        ),
-                        border: Border.all(
-                          color: Colors.amber
-                              .withOpacity(
-                            0.35,
-                          ),
-                        ),
-                      ),
-                      child: const Row(
-                        crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                        children: [
-                          Icon(
-                            Icons
-                                .warning_amber_rounded,
-                            size: 20,
-                            color: Colors.amber,
-                          ),
-
-                          SizedBox(
-                            width: 10,
-                          ),
-
-                          Expanded(
-                            child: Text(
-                              'SafeZone is a community safety platform. '
-                                  'For life-threatening police, ambulance '
-                                  'or fire emergencies, contact 999.',
-                              style: TextStyle(
-                                fontSize: 10,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
             // ==================================================
-            // SEND SOS BUTTON
+            // CATEGORY LIST
+            // ==================================================
+
+            Expanded(
+              child:
+              ListView.separated(
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal:
+                  18,
+                ),
+
+                itemCount:
+                _categories.length,
+
+                separatorBuilder: (
+                    context,
+                    index,
+                    ) =>
+                const SizedBox(
+                  height:
+                  9,
+                ),
+
+                itemBuilder: (
+                    context,
+                    index,
+                    ) {
+                  final option =
+                  _categories[
+                  index];
+
+                  return _buildCategory(
+                    option,
+                  );
+                },
+              ),
+            ),
+
+            // ==================================================
+            // SEND BUTTON
             // ==================================================
 
             Container(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
+              padding:
+              const EdgeInsets.fromLTRB(
+                18,
+                13,
+                18,
                 18,
               ),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .scaffoldBackgroundColor,
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme
+              decoration:
+              BoxDecoration(
+                color:
+                Theme.of(context)
+                    .colorScheme
+                    .surface,
+                border:
+                Border(
+                  top:
+                  BorderSide(
+                    color:
+                    Theme.of(context)
+                        .colorScheme
                         .outlineVariant,
                   ),
                 ),
               ),
-              child: Column(
+              child:
+              Column(
                 children: [
-                  Row(
+                  const Row(
+                    mainAxisAlignment:
+                    MainAxisAlignment.center,
                     children: [
                       Icon(
-                        _selectedCategory.icon,
-                        size: 18,
-                        color: Colors.red,
+                        Icons
+                            .my_location_rounded,
+                        size:
+                        15,
                       ),
 
-                      const SizedBox(
-                        width: 8,
+                      SizedBox(
+                        width:
+                        5,
                       ),
 
-                      Expanded(
-                        child: Text(
-                          _selectedCategory.label,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight:
-                            FontWeight.w600,
-                          ),
+                      Text(
+                        'Your current GPS location will be attached automatically.',
+                        style:
+                        TextStyle(
+                          fontSize:
+                          8,
                         ),
                       ),
                     ],
                   ),
 
                   const SizedBox(
-                    height: 10,
+                    height:
+                    11,
                   ),
 
                   SizedBox(
                     width:
                     double.infinity,
-                    height: 56,
+                    height:
+                    56,
                     child:
                     FilledButton.icon(
                       style:
                       FilledButton.styleFrom(
                         backgroundColor:
-                        Colors.red,
+                        Colors.redAccent,
                         foregroundColor:
                         Colors.white,
                       ),
                       onPressed:
-                      _isSending
+                      _sending
                           ? null
                           : _sendSos,
-                      icon: _isSending
+                      icon:
+                      _sending
                           ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                        width:
+                        20,
+                        height:
+                        20,
                         child:
                         CircularProgressIndicator(
                           strokeWidth:
@@ -611,31 +424,19 @@ class _SosScreenState extends State<SosScreen> {
                         Icons
                             .sos_rounded,
                       ),
-                      label: Text(
-                        _isSending
-                            ? 'Sending SOS...'
+                      label:
+                      Text(
+                        _sending
+                            ? 'SENDING SOS...'
                             : 'SEND SOS',
                         style:
                         const TextStyle(
                           fontWeight:
-                          FontWeight
-                              .bold,
-                          fontSize: 15,
+                          FontWeight.bold,
+                          fontSize:
+                          16,
                         ),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 8,
-                  ),
-
-                  const Text(
-                    'Tap only when emergency assistance is required.',
-                    textAlign:
-                    TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 9,
                     ),
                   ),
                 ],
@@ -646,204 +447,141 @@ class _SosScreenState extends State<SosScreen> {
       ),
     );
   }
-}
 
-// ============================================================
-// SOS CATEGORY
-// ============================================================
+  // ============================================================
+  // CATEGORY
+  // ============================================================
 
-enum SosCategory {
-  medical(
-    code: 'medical',
-    label: 'Medical Emergency',
-    description:
-    'Serious injury, fainting, breathing difficulty or another medical emergency.',
-    icon:
-    Icons.medical_services_outlined,
-  ),
-
-  crime(
-    code: 'crime',
-    label: 'Crime / Personal Threat',
-    description:
-    'Robbery, assault, stalking, harassment or a threat to your personal safety.',
-    icon: Icons.shield_outlined,
-  ),
-
-  accident(
-    code: 'accident',
-    label: 'Accident',
-    description:
-    'Road accident, fall, collision or another unexpected accident.',
-    icon: Icons.car_crash_outlined,
-  ),
-
-  fireHazard(
-    code: 'fire_hazard',
-    label: 'Fire / Hazard',
-    description:
-    'Fire, smoke, gas leak, electrical danger or another hazardous situation.',
-    icon: Icons
-        .local_fire_department_outlined,
-  ),
-
-  other(
-    code: 'other',
-    label: 'Other Emergency',
-    description:
-    'An urgent situation that does not match the categories above.',
-    icon:
-    Icons.warning_amber_rounded,
-  ),
-
-  unsure(
-    code: 'unsure',
-    label: 'Not Sure / Need Help',
-    description:
-    'Use this when you need help but are unsure which emergency category applies.',
-    icon:
-    Icons.help_outline_rounded,
-  );
-
-  final String code;
-
-  final String label;
-
-  final String description;
-
-  final IconData icon;
-
-  const SosCategory({
-    required this.code,
-    required this.label,
-    required this.description,
-    required this.icon,
-  });
-}
-
-// ============================================================
-// CATEGORY CARD
-// ============================================================
-
-class _SosCategoryCard
-    extends StatelessWidget {
-  final SosCategory category;
-
-  final bool selected;
-
-  final VoidCallback onTap;
-
-  const _SosCategoryCard({
-    required this.category,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+  Widget _buildCategory(
+      _SosCategoryOption option,
+      ) {
+    final selected =
+        _selectedCategory ==
+            option.value;
 
     return Material(
-      color: Colors.transparent,
-      child: InkWell(
+      color:
+      Colors.transparent,
+      child:
+      InkWell(
         borderRadius:
         BorderRadius.circular(
-          18,
+          17,
         ),
-        onTap: onTap,
-        child: AnimatedContainer(
+        onTap:
+        _sending
+            ? null
+            : () {
+          setState(() {
+            _selectedCategory =
+                option.value;
+          });
+        },
+        child:
+        AnimatedContainer(
           duration:
           const Duration(
-            milliseconds: 180,
+            milliseconds:
+            150,
           ),
           padding:
           const EdgeInsets.all(
-            17,
+            14,
           ),
-          decoration: BoxDecoration(
+          decoration:
+          BoxDecoration(
             borderRadius:
             BorderRadius.circular(
-              18,
+              17,
             ),
-            color: selected
-                ? Colors.red
+            color:
+            selected
+                ? option.color
                 .withOpacity(
               0.10,
             )
-                : colorScheme
+                : Theme.of(context)
+                .colorScheme
                 .surfaceContainer,
-            border: Border.all(
-              width:
-              selected ? 2 : 1,
-              color: selected
-                  ? Colors.red
-                  : colorScheme
+            border:
+            Border.all(
+              color:
+              selected
+                  ? option.color
+                  : Theme.of(context)
+                  .colorScheme
                   .outlineVariant,
+              width:
+              selected
+                  ? 1.6
+                  : 1,
             ),
           ),
-          child: Row(
+          child:
+          Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width:
+                44,
+                height:
+                44,
                 decoration:
                 BoxDecoration(
                   borderRadius:
                   BorderRadius.circular(
-                    14,
+                    13,
                   ),
-                  color: selected
-                      ? Colors.red
+                  color:
+                  option.color
                       .withOpacity(
-                    0.15,
-                  )
-                      : colorScheme
-                      .surfaceContainerHighest,
+                    0.12,
+                  ),
                 ),
-                child: Icon(
-                  category.icon,
-                  color: selected
-                      ? Colors.red
-                      : null,
+                child:
+                Icon(
+                  option.icon,
+                  color:
+                  option.color,
+                  size:
+                  22,
                 ),
               ),
 
               const SizedBox(
-                width: 14,
+                width:
+                12,
               ),
 
               Expanded(
-                child: Column(
+                child:
+                Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
                   children: [
                     Text(
-                      category.label,
+                      option.title,
                       style:
-                      TextStyle(
-                        fontSize: 15,
+                      const TextStyle(
+                        fontSize:
+                        12,
                         fontWeight:
-                        FontWeight
-                            .bold,
-                        color: selected
-                            ? Colors.red
-                            : null,
+                        FontWeight.w600,
                       ),
                     ),
 
                     const SizedBox(
-                      height: 4,
+                      height:
+                      3,
                     ),
 
                     Text(
-                      category
-                          .description,
+                      option.subtitle,
                       style:
                       const TextStyle(
-                        fontSize: 10,
-                        height: 1.35,
+                        fontSize:
+                        8.5,
+                        height:
+                        1.35,
                       ),
                     ),
                   ],
@@ -851,17 +589,19 @@ class _SosCategoryCard
               ),
 
               const SizedBox(
-                width: 10,
+                width:
+                8,
               ),
 
               Icon(
                 selected
                     ? Icons
-                    .check_circle_rounded
+                    .radio_button_checked_rounded
                     : Icons
-                    .radio_button_unchecked,
-                color: selected
-                    ? Colors.red
+                    .radio_button_off_rounded,
+                color:
+                selected
+                    ? option.color
                     : null,
               ),
             ],
@@ -873,45 +613,25 @@ class _SosCategoryCard
 }
 
 // ============================================================
-// SOS INFORMATION ROW
+// CATEGORY OPTION
 // ============================================================
 
-class _SosInformationRow
-    extends StatelessWidget {
+class _SosCategoryOption {
+  final String value;
+
+  final String title;
+
+  final String subtitle;
+
   final IconData icon;
 
-  final String text;
+  final Color color;
 
-  const _SosInformationRow({
+  const _SosCategoryOption({
+    required this.value,
+    required this.title,
+    required this.subtitle,
     required this.icon,
-    required this.text,
+    required this.color,
   });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          size: 20,
-        ),
-
-        const SizedBox(
-          width: 10,
-        ),
-
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

@@ -4,11 +4,15 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/location_service.dart';
+import '../services/device_binding_service.dart';
+import '../services/emergency_coordination_service.dart';
 import '../services/state_risk_service.dart';
+import '../models/coordination_models.dart';
 
 import 'help_support_screen.dart';
 import 'insights_hub_screen.dart';
 import 'login_screen.dart';
+import 'nearby_sos_detail_screen.dart';
 import 'personal_information_screen.dart';
 import 'privacy_security_screen.dart';
 import 'registered_device_screen.dart';
@@ -214,6 +218,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
 
     await _loadCurrentSafetyData();
+
+    if (!mounted) return;
+
+    await _loadNearbyAlerts();
   }
 
   // ============================================================
@@ -258,21 +266,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // DEVICE
       // ========================================================
 
-      final device =
-      await supabase
-          .from('user_devices')
-          .select(
-        'id',
-      )
-          .eq(
-        'user_id',
-        user.id,
-      )
-          .eq(
-        'is_active',
-        true,
-      )
-          .maybeSingle();
+      final currentDeviceBound =
+      await DeviceBindingService.instance
+          .isCurrentDeviceBound();
 
       if (!mounted) return;
 
@@ -286,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 true;
 
         _hasBoundDevice =
-            device != null;
+            currentDeviceBound;
 
         _setupLoading =
         false;
@@ -622,6 +618,54 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ============================================================
+  // LOAD NEARBY SOS FROM SUPABASE
+  // ============================================================
+
+  Future<void> _loadNearbyAlerts({
+    bool showErrorSnackBar = false,
+  }) async {
+    try {
+      final incidents =
+      await EmergencyCoordinationService.instance
+          .getNearbyIncidents();
+
+      if (!mounted) return;
+
+      setState(() {
+        _nearbyAlerts = incidents
+            .map(
+              (incident) =>
+              _NearbyAlert.fromIncident(
+                incident,
+              ),
+        )
+            .toList();
+      });
+    } catch (e) {
+      debugPrint(
+        'LOAD NEARBY ALERTS ERROR: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _nearbyAlerts = [];
+      });
+
+      if (showErrorSnackBar) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to load nearby SOS alerts.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // ============================================================
   // FIND RISK
   // ============================================================
 
@@ -693,6 +737,13 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadCurrentSafetyData(
       refreshRisk:
       true,
+      showErrorSnackBar:
+      true,
+    );
+
+    if (!mounted) return;
+
+    await _loadNearbyAlerts(
       showErrorSnackBar:
       true,
     );
@@ -3070,6 +3121,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // ============================================================
 
   Future<void> _showNearbyAlerts() async {
+    await _loadNearbyAlerts();
+
+    if (!mounted) return;
+
     final scheme =
         Theme.of(context)
             .colorScheme;
@@ -3378,18 +3433,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   double.infinity,
                   child:
                   FilledButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(
                         context,
                       );
 
-                      _mapController.move(
-                        LatLng(
-                          alert.latitude,
-                          alert.longitude,
+                      await Navigator.push(
+                        this.context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              NearbySosDetailScreen(
+                                incident:
+                                alert.incident,
+                              ),
                         ),
-                        16,
                       );
+
+                      if (!mounted) return;
+
+                      await _loadNearbyAlerts();
                     },
                     icon:
                     const Icon(
@@ -4298,6 +4360,8 @@ class _NearbyAlert {
 
   final String? locationName;
 
+  final NearbySosIncident incident;
+
   const _NearbyAlert({
     required this.id,
     required this.title,
@@ -4307,5 +4371,126 @@ class _NearbyAlert {
     required this.distanceKm,
     required this.timeAgo,
     required this.locationName,
+    required this.incident,
   });
+
+  factory _NearbyAlert.fromIncident(
+      NearbySosIncident incident,
+      ) {
+    return _NearbyAlert(
+      id:
+      incident.id,
+
+      title:
+      _titleFromCategory(
+        incident.category,
+      ),
+
+      category:
+      _categoryFromValue(
+        incident.category,
+      ),
+
+      latitude:
+      incident.latitude,
+
+      longitude:
+      incident.longitude,
+
+      distanceKm:
+      incident.distanceMetres /
+          1000,
+
+      timeAgo:
+      _formatTimeAgo(
+        incident.createdAt,
+      ),
+
+      locationName:
+      incident.address,
+
+      incident:
+      incident,
+    );
+  }
+
+  static _NearbyAlertCategory
+  _categoryFromValue(
+      String value,
+      ) {
+    switch (value) {
+      case 'medical':
+        return _NearbyAlertCategory
+            .medical;
+
+      case 'accident':
+        return _NearbyAlertCategory
+            .accident;
+
+      case 'crime':
+        return _NearbyAlertCategory
+            .suspicious;
+
+      case 'fire_hazard':
+      case 'other':
+        return _NearbyAlertCategory
+            .other;
+
+      case 'unsure':
+      default:
+        return _NearbyAlertCategory
+            .sos;
+    }
+  }
+
+  static String _titleFromCategory(
+      String value,
+      ) {
+    switch (value) {
+      case 'medical':
+        return 'Medical Emergency';
+
+      case 'accident':
+        return 'Accident';
+
+      case 'crime':
+        return 'Crime / Personal Threat';
+
+      case 'fire_hazard':
+        return 'Fire / Hazard';
+
+      case 'other':
+        return 'Other Emergency';
+
+      case 'unsure':
+      default:
+        return 'SOS Emergency';
+    }
+  }
+
+  static String _formatTimeAgo(
+      DateTime value,
+      ) {
+    final difference =
+    DateTime.now().difference(
+      value.toLocal(),
+    );
+
+    if (difference.inSeconds <
+        60) {
+      return 'Just now';
+    }
+
+    if (difference.inMinutes <
+        60) {
+      return '${difference.inMinutes} min ago';
+    }
+
+    if (difference.inHours <
+        24) {
+      return '${difference.inHours} hr ago';
+    }
+
+    return '${difference.inDays} day ago';
+  }
 }
