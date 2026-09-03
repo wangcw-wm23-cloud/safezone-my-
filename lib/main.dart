@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safezone_my/screens/session_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/login_screen.dart';
@@ -24,7 +25,7 @@ class SafeZoneApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'SafeZone MY',
       theme: AppTheme.darkTheme,
-      home: const LoginScreen(),
+      home: const SessionGate(),
     );
   }
 }
