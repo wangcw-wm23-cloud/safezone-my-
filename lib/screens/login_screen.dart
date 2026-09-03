@@ -10,907 +10,355 @@ import 'register_screen.dart';
 import 'reset_password_screen.dart';
 import 'verify_email_screen.dart';
 
-
 class LoginScreen extends StatefulWidget {
-
-  const LoginScreen({
-    super.key,
-  });
-
+  const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() =>
-      _LoginScreenState();
-
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-
-
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
 
+  final TextEditingController _emailController = TextEditingController();
 
-  final _formKey =
-  GlobalKey<FormState>();
+  final TextEditingController _passwordController = TextEditingController();
 
+  final SupabaseClient supabase = Supabase.instance.client;
 
-  final TextEditingController _emailController =
-  TextEditingController();
+  final AuthRecoveryHandler _authRecoveryHandler = AuthRecoveryHandler();
 
-
-  final TextEditingController _passwordController =
-  TextEditingController();
-
-
-
-  final SupabaseClient supabase =
-      Supabase.instance.client;
-
-
-
-  final AuthRecoveryHandler
-  _authRecoveryHandler =
-  AuthRecoveryHandler();
-
-
-
-  final DeviceBindingService
-  _deviceBindingService =
-  DeviceBindingService();
-
-
+  final DeviceBindingService _deviceBindingService = DeviceBindingService();
 
   bool _isLoading = false;
 
-
   bool _obscurePassword = true;
-
-
-
 
   @override
   void initState() {
-
     super.initState();
 
-
     _authRecoveryHandler.start(
-
       onPasswordRecovery: () {
+        if (!mounted) return;
 
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
 
-        if(!mounted) return;
+          Navigator.pushAndRemoveUntil(
+            context,
 
+            MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
 
-        WidgetsBinding.instance
-            .addPostFrameCallback(
-              (_) {
-
-
-            if(!mounted) return;
-
-
-            Navigator.pushAndRemoveUntil(
-              context,
-
-              MaterialPageRoute(
-                builder: (_) =>
-                const ResetPasswordScreen(),
-              ),
-
-                  (route) => false,
-
-            );
-
-
-          },
-
-        );
-
-
+            (route) => false,
+          );
+        });
       },
-
     );
-
-
   }
 
-
-
-
-
   Future<void> _login() async {
-
-
-    if(!_formKey.currentState!
-        .validate()){
-
+    if (!_formKey.currentState!.validate()) {
       return;
-
     }
 
+    final email = _emailController.text.trim();
 
-
-    final String email =
-    _emailController.text.trim();
-
-
-
-    final String password =
-        _passwordController.text;
-
-
+    final password = _passwordController.text;
 
     setState(() {
-
       _isLoading = true;
-
     });
 
-
-
-
     try {
+      // ===============================
+      // SUPABASE LOGIN
+      // ===============================
 
-
-
-      final AuthResponse response =
-      await supabase.auth
-          .signInWithPassword(
-
+      final AuthResponse response = await supabase.auth.signInWithPassword(
         email: email,
 
         password: password,
-
       );
 
+      final User? user = response.user;
 
-
-
-      final User? user =
-          response.user;
-
-
-
-
-      if(user == null){
-
-
-        throw const AuthException(
-          'Login failed. Please try again.',
-        );
-
-
+      if (user == null) {
+        throw const AuthException('Login failed.');
       }
 
+      // ===============================
+      // EMAIL VERIFICATION
+      // ===============================
 
-
-
-
-
-      // ==========================================
-      // EMAIL VERIFICATION CHECK
-      // ==========================================
-
-      if(user.emailConfirmedAt == null){
-
-
+      if (user.emailConfirmedAt == null) {
         await supabase.auth.signOut();
 
-
-
-        if(!mounted) return;
-
-
+        if (!mounted) return;
 
         Navigator.push(
           context,
 
-          MaterialPageRoute(
-            builder: (_) =>
-                VerifiedScreen(
-                  email: email,
-                ),
-          ),
-
+          MaterialPageRoute(builder: (_) => VerifiedScreen(email: email)),
         );
 
-
-
         return;
-
       }
 
-
-
-
-
-
-      // ==========================================
+      // ===============================
       // DEVICE BINDING CHECK
-      // ==========================================
+      // ===============================
 
-      final bool deviceAllowed =
-      await _deviceBindingService
+      final bool deviceAllowed = await _deviceBindingService
           .checkDeviceBinding();
 
-
-
-
-
-      if(!deviceAllowed){
-
-
-
+      if (!deviceAllowed) {
         await supabase.auth.signOut();
 
+        if (!mounted) return;
 
-
-        if(!mounted) return;
-
-
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-
             content: Text(
               'This account is already registered on another device.',
             ),
-
           ),
-
         );
 
-
-
         return;
-
       }
 
-
-
-
-
-
-      // ==========================================
+      // ===============================
       // LOGIN SUCCESS
-      // ==========================================
+      // ===============================
 
-
-      if(!mounted) return;
-
-
+      if (!mounted) return;
 
       Navigator.pushAndRemoveUntil(
-
         context,
 
-        MaterialPageRoute(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
 
-          builder: (_) =>
-          const HomeScreen(),
-
-        ),
-
-            (route) => false,
-
+        (route) => false,
       );
+    } on AuthException catch (e) {
+      if (!mounted) return;
 
+      final message = e.message.toLowerCase();
 
-
-
-
-    }
-
-
-
-    on AuthException catch(e){
-
-
-      if(!mounted) return;
-
-
-
-
-      final String message =
-      e.message.toLowerCase();
-
-
-
-
-      if(message.contains(
-          'email not confirmed')){
-
-
-
+      if (message.contains('email not confirmed')) {
         Navigator.push(
-
           context,
 
-          MaterialPageRoute(
-
-            builder: (_) =>
-                VerifiedScreen(
-                  email: email,
-                ),
-
-          ),
-
+          MaterialPageRoute(builder: (_) => VerifiedScreen(email: email)),
         );
 
-
         return;
-
       }
 
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e, stackTrace) {
+      debugPrint('LOGIN ERROR: $e');
 
+      debugPrint(stackTrace.toString());
 
+      if (!mounted) return;
 
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
-        SnackBar(
-
-          content: Text(
-            e.message,
-          ),
-
-        ),
-
-      );
-
-
-    }
-
-
-
-
-    catch(e){
-
-
-      debugPrint(
-        'LOGIN ERROR: $e',
-      );
-
-
-
-      if(!mounted) return;
-
-
-
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
-        const SnackBar(
-
-          content: Text(
-            'Something went wrong. Please try again.',
-          ),
-
-        ),
-
-      );
-
-    }
-
-
-
-
-
-    finally{
-
-
-      if(mounted){
-
-
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
         setState(() {
-
           _isLoading = false;
-
         });
-
-
       }
-
-
     }
-
-
   }
 
-
-
-
-
-
-
   @override
-  void dispose(){
-
-
+  void dispose() {
     _authRecoveryHandler.dispose();
-
 
     _emailController.dispose();
 
-
     _passwordController.dispose();
 
-
     super.dispose();
-
   }
 
-
-
-
-
-
-
-
   @override
-  Widget build(BuildContext context){
-
-
+  Widget build(BuildContext context) {
     return Scaffold(
-
       body: SafeArea(
-
         child: SingleChildScrollView(
-
-          padding:
-          const EdgeInsets.symmetric(
-
-            horizontal: 24,
-
-            vertical: 30,
-
-          ),
-
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
 
           child: Form(
-
             key: _formKey,
 
-
             child: Column(
-
-              crossAxisAlignment:
-              CrossAxisAlignment.stretch,
-
+              crossAxisAlignment: CrossAxisAlignment.stretch,
 
               children: [
+                const SizedBox(height: 40),
 
+                const Icon(Icons.shield_outlined, size: 85),
 
-
-                const SizedBox(
-                  height:40,
-                ),
-
-
-
-
-                const Icon(
-
-                  Icons.shield_outlined,
-
-                  size:85,
-
-                ),
-
-
-
-
-                const SizedBox(
-                  height:20,
-                ),
-
-
-
+                const SizedBox(height: 20),
 
                 const Text(
-
                   'SafeZone MY',
 
-                  textAlign:
-                  TextAlign.center,
+                  textAlign: TextAlign.center,
 
-
-                  style:
-                  TextStyle(
-
-                    fontSize:30,
-
-                    fontWeight:
-                    FontWeight.bold,
-
-                  ),
-
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                 ),
 
+                const SizedBox(height: 8),
 
+                const Text('Welcome Back', textAlign: TextAlign.center),
 
-
-                const SizedBox(
-                  height:8,
-                ),
-
-
-
-
-                const Text(
-
-                  'Welcome Back',
-
-                  textAlign:
-                  TextAlign.center,
-
-                ),
-
-
-
-
-                const SizedBox(
-                  height:40,
-                ),
-
-
-
+                const SizedBox(height: 40),
 
                 TextFormField(
+                  controller: _emailController,
 
-                  controller:
-                  _emailController,
+                  keyboardType: TextInputType.emailAddress,
 
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
 
-                  keyboardType:
-                  TextInputType.emailAddress,
+                    prefixIcon: Icon(Icons.email_outlined),
 
-
-                  decoration:
-                  const InputDecoration(
-
-                    labelText:'Email',
-
-                    prefixIcon:
-                    Icon(
-                      Icons.email_outlined,
-                    ),
-
-                    border:
-                    OutlineInputBorder(),
-
+                    border: OutlineInputBorder(),
                   ),
 
-
-
-
-                  validator:(value){
-
-
-                    final email =
-                        value?.trim() ?? '';
-
-
-
-                    if(email.isEmpty){
-
-                      return
-                        'Please enter your email';
-
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your email';
                     }
 
-
-
-                    if(!email.contains('@')){
-
-                      return
-                        'Please enter a valid email';
-
+                    if (!value.contains('@')) {
+                      return 'Please enter valid email';
                     }
-
 
                     return null;
-
-
                   },
-
                 ),
 
-
-
-
-
-
-                const SizedBox(
-                  height:18,
-                ),
-
-
-
-
-
+                const SizedBox(height: 18),
 
                 TextFormField(
+                  controller: _passwordController,
 
-                  controller:
-                  _passwordController,
+                  obscureText: _obscurePassword,
 
-
-                  obscureText:
-                  _obscurePassword,
-
-
-
-                  onFieldSubmitted:(_){
-
-
-                    if(!_isLoading){
-
+                  onFieldSubmitted: (_) {
+                    if (!_isLoading) {
                       _login();
-
                     }
-
-
                   },
 
+                  decoration: InputDecoration(
+                    labelText: 'Password',
 
+                    prefixIcon: const Icon(Icons.lock_outline),
 
-                  decoration:
-                  InputDecoration(
+                    border: const OutlineInputBorder(),
 
-                    labelText:'Password',
-
-
-                    prefixIcon:
-                    const Icon(
-                      Icons.lock_outline,
-                    ),
-
-
-                    border:
-                    const OutlineInputBorder(),
-
-
-
-                    suffixIcon:
-                    IconButton(
-
-                      icon:
-                      Icon(
-
+                    suffixIcon: IconButton(
+                      icon: Icon(
                         _obscurePassword
-
                             ? Icons.visibility_off
-
                             : Icons.visibility,
-
                       ),
 
-
-
-                      onPressed:(){
-
+                      onPressed: () {
                         setState(() {
-
-                          _obscurePassword =
-                          !_obscurePassword;
-
+                          _obscurePassword = !_obscurePassword;
                         });
-
                       },
-
                     ),
-
-
                   ),
 
-
-
-
-
-                  validator:(value){
-
-
-                    if(value == null ||
-                        value.isEmpty){
-
-                      return
-                        'Please enter your password';
-
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
                     }
 
-
                     return null;
-
                   },
-
-
                 ),
 
-
-
-
-
-
-
                 Align(
+                  alignment: Alignment.centerRight,
 
-                  alignment:
-                  Alignment.centerRight,
-
-
-                  child:
-                  TextButton(
-
-                    onPressed:(){
-
-
+                  child: TextButton(
+                    onPressed: () {
                       Navigator.push(
-
                         context,
 
                         MaterialPageRoute(
-
-                          builder:(_)=>
-                          const ForgotPasswordScreen(),
-
+                          builder: (_) => const ForgotPasswordScreen(),
                         ),
-
                       );
-
-
                     },
 
-
-                    child:
-                    const Text(
-                      'Forgot Password?',
-                    ),
-
-
+                    child: const Text('Forgot Password?'),
                   ),
-
                 ),
 
-
-
-
-
-
-                const SizedBox(
-                  height:18,
-                ),
-
-
-
-
-
+                const SizedBox(height: 18),
 
                 SizedBox(
+                  height: 52,
 
-                  height:52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _login,
 
-
-                  child:
-                  ElevatedButton(
-
-                    onPressed:
-                    _isLoading
-                        ? null
-                        : _login,
-
-
-
-                    child:
-                    _isLoading
-
+                    child: _isLoading
                         ? const SizedBox(
+                            width: 22,
 
-                      width:22,
+                            height: 22,
 
-                      height:22,
-
-                      child:
-                      CircularProgressIndicator(
-                        strokeWidth:2,
-                      ),
-
-                    )
-
-                        :
-                    const Text(
-                      'Login',
-                    ),
-
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Login'),
                   ),
-
                 ),
 
-
-
-
-
-
-                const SizedBox(
-                  height:22,
-                ),
-
-
-
-
-
+                const SizedBox(height: 22),
 
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
 
-                  mainAxisAlignment:
-                  MainAxisAlignment.center,
-
-
-                  children:[
-
-
-                    const Text(
-                      "Don't have an account?",
-                    ),
-
-
+                  children: [
+                    const Text("Don't have an account?"),
 
                     TextButton(
-
-                      onPressed:(){
-
-
+                      onPressed: () {
                         Navigator.push(
-
                           context,
 
                           MaterialPageRoute(
-
-                            builder:(_)=>
-                            const RegisterScreen(),
-
+                            builder: (_) => const RegisterScreen(),
                           ),
-
                         );
-
-
                       },
 
-
-                      child:
-                      const Text(
-                        'Register',
-                      ),
-
+                      child: const Text('Register'),
                     ),
-
-
-
                   ],
-
-                )
-
-
-
-
-
+                ),
               ],
-
             ),
-
           ),
-
         ),
-
       ),
-
     );
-
   }
-
-
 }
