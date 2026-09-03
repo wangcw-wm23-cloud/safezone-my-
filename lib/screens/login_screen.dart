@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_recovery_handler.dart';
 import '../services/device_binding_service.dart';
-
+import '../services/session_manager.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -128,6 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      await SessionManager.instance.markActive();
       // ===============================
       // LOGIN SUCCESS
       // ===============================
