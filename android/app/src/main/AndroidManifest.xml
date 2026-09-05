@@ -1,20 +1,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ====================================================== -->
-    <!-- LOCATION PERMISSIONS -->
-    <!-- ====================================================== -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="false" />
 
     <application
         android:label="safezone_my"
-        android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.safezone_my.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -27,19 +33,11 @@
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
-            <!-- ================================================== -->
-            <!-- NORMAL APP LAUNCHER -->
-            <!-- ================================================== -->
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-            <!-- ================================================== -->
-            <!-- SUPABASE EMAIL VERIFICATION DEEP LINK -->
-            <!-- safezone://verify-email -->
-            <!-- ================================================== -->
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -51,11 +49,6 @@
                     android:scheme="safezone"
                     android:host="verify-email" />
             </intent-filter>
-
-            <!-- ================================================== -->
-            <!-- SUPABASE RESET PASSWORD DEEP LINK -->
-            <!-- safezone://reset-password -->
-            <!-- ================================================== -->
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -70,23 +63,16 @@
 
         </activity>
 
-        <!-- ====================================================== -->
-        <!-- DON'T DELETE THIS -->
-        <!-- ====================================================== -->
-
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
     </application>
 
-    <!-- ======================================================== -->
-    <!-- QUERIES -->
-    <!-- ======================================================== -->
-
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
+
             <data android:mimeType="text/plain" />
         </intent>
     </queries>
