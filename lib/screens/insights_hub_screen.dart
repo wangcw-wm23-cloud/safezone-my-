@@ -3,22 +3,7 @@ import 'package:flutter/material.dart';
 import 'malaysia_overview_screen.dart';
 import 'safety_insights_screen.dart';
 
-// ============================================================
-// INSIGHTS HUB SCREEN
-//
-// PURPOSE:
-//
-// Keep the existing two-part Insights structure:
-//
-// 1. Data
-//    -> Existing SafetyInsightsScreen
-//
-// 2. Overview
-//    -> Existing MalaysiaOverviewScreen
-//
-// This file only controls presentation / navigation.
-// It does NOT modify any data calculation or API logic.
-// ============================================================
+
 
 class InsightsHubScreen extends StatefulWidget {
   const InsightsHubScreen({super.key});
@@ -28,18 +13,11 @@ class InsightsHubScreen extends StatefulWidget {
 }
 
 class _InsightsHubScreenState extends State<InsightsHubScreen> {
-  // ============================================================
-  // SELECTED TAB
-  //
-  // 0 = Data
-  // 1 = Overview
-  // ============================================================
+
 
   int _selectedIndex = 0;
 
-  // ============================================================
-  // MAIN
-  // ============================================================
+
 
   @override
   Widget build(BuildContext context) {
@@ -51,34 +29,24 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ==================================================
-            // HEADER
-            // ==================================================
+
             _buildHeader(),
 
-            // ==================================================
-            // TAB SWITCHER
-            // ==================================================
+
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
               child: _buildSegmentedControl(),
             ),
 
-            // ==================================================
-            // CONTENT
-            // ==================================================
+
             Expanded(
               child: IndexedStack(
                 index: _selectedIndex,
                 children: const [
-                  // ============================================
-                  // EXISTING DATA PAGE
-                  // ============================================
+
                   SafetyInsightsScreen(),
 
-                  // ============================================
-                  // EXISTING MALAYSIA OVERVIEW
-                  // ============================================
+
                   MalaysiaOverviewScreen(),
                 ],
               ),
@@ -89,9 +57,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
+
 
   Widget _buildHeader() {
     final scheme = Theme.of(context).colorScheme;
@@ -101,9 +67,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ====================================================
-          // ICON
-          // ====================================================
+
           Container(
             width: 46,
             height: 46,
@@ -120,9 +84,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
 
           const SizedBox(width: 13),
 
-          // ====================================================
-          // TITLE
-          // ====================================================
+
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,9 +106,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
 
           const SizedBox(width: 8),
 
-          // ====================================================
-          // INFO BUTTON
-          // ====================================================
+
           Container(
             width: 40,
             height: 40,
@@ -167,9 +127,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
     );
   }
 
-  // ============================================================
-  // SEGMENTED CONTROL
-  // ============================================================
+
 
   Widget _buildSegmentedControl() {
     final scheme = Theme.of(context).colorScheme;
@@ -184,9 +142,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
       ),
       child: Row(
         children: [
-          // ====================================================
-          // DATA
-          // ====================================================
+
           Expanded(
             child: _buildSegmentButton(
               index: 0,
@@ -197,9 +153,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
 
           const SizedBox(width: 5),
 
-          // ====================================================
-          // OVERVIEW
-          // ====================================================
+
           Expanded(
             child: _buildSegmentButton(
               index: 1,
@@ -212,9 +166,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
     );
   }
 
-  // ============================================================
-  // SEGMENT BUTTON
-  // ============================================================
+
 
   Widget _buildSegmentButton({
     required int index,
@@ -280,9 +232,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
     );
   }
 
-  // ============================================================
-  // ABOUT INSIGHTS
-  // ============================================================
+
 
   Future<void> _showInsightsInfo() async {
     final scheme = Theme.of(context).colorScheme;
@@ -300,9 +250,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ===============================================
-                // TITLE
-                // ===============================================
+
                 Row(
                   children: [
                     Container(
@@ -334,9 +282,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
 
                 const SizedBox(height: 18),
 
-                // ===============================================
-                // DATA
-                // ===============================================
+
                 _buildInfoRow(
                   icon: Icons.bar_chart_rounded,
                   title: 'Data',
@@ -346,9 +292,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
 
                 const SizedBox(height: 14),
 
-                // ===============================================
-                // OVERVIEW
-                // ===============================================
+
                 _buildInfoRow(
                   icon: Icons.public_rounded,
                   title: 'Overview',
@@ -358,9 +302,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
 
                 const SizedBox(height: 18),
 
-                // ===============================================
-                // SOURCE NOTE
-                // ===============================================
+
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
@@ -393,9 +335,7 @@ class _InsightsHubScreenState extends State<InsightsHubScreen> {
     );
   }
 
-  // ============================================================
-  // INFO ROW
-  // ============================================================
+
 
   Widget _buildInfoRow({
     required IconData icon,

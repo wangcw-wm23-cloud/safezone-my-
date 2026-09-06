@@ -77,9 +77,7 @@ class _LoginScreenState
 
       signedIn = true;
 
-      // ========================================================
-      // EMAIL VERIFICATION
-      // ========================================================
+
 
       if (user.emailConfirmedAt == null) {
         await SessionManager.instance.logout();
@@ -99,14 +97,7 @@ class _LoginScreenState
         return;
       }
 
-      // ========================================================
-      // DEVICE CHECK
-      //
-      // Not bound = allowed.
-      // Same device = allowed.
-      // Another device = rejected.
-      // No automatic binding happens here.
-      // ========================================================
+
 
       final deviceAllowed =
       await DeviceBindingService.instance
