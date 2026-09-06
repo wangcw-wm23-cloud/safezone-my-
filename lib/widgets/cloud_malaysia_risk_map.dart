@@ -5,9 +5,6 @@ import 'package:flutter/material.dart';
 import '../services/malaysia_map_service.dart';
 import '../services/state_risk_service.dart';
 
-// ============================================================
-// CLOUD MALAYSIA RISK MAP
-// ============================================================
 
 class CloudMalaysiaRiskMap
     extends StatefulWidget {
@@ -56,9 +53,6 @@ class _CloudMalaysiaRiskMapState
             .load();
   }
 
-  // ============================================================
-  // RETRY
-  // ============================================================
 
   void _retry() {
     setState(() {
@@ -72,9 +66,6 @@ class _CloudMalaysiaRiskMapState
     });
   }
 
-  // ============================================================
-  // CACHE
-  // ============================================================
 
   void _clearProjectionCache() {
     _cachedSize = null;
@@ -85,10 +76,6 @@ class _CloudMalaysiaRiskMapState
 
     _projectedCentres = {};
   }
-
-  // ============================================================
-  // RISK DATA
-  // ============================================================
 
   StateRiskData? _riskFor(
       String state,
@@ -126,10 +113,6 @@ class _CloudMalaysiaRiskMapState
     }
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(
       BuildContext context,
@@ -142,18 +125,11 @@ class _CloudMalaysiaRiskMapState
           context,
           snapshot,
           ) {
-        // ======================================================
-        // LOADING
-        // ======================================================
 
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return _buildLoading();
         }
-
-        // ======================================================
-        // ERROR
-        // ======================================================
 
         if (snapshot.hasError ||
             !snapshot.hasData) {
@@ -166,10 +142,6 @@ class _CloudMalaysiaRiskMapState
       },
     );
   }
-
-  // ============================================================
-  // LOADING UI
-  // ============================================================
 
   Widget _buildLoading() {
     return AspectRatio(
@@ -222,10 +194,6 @@ class _CloudMalaysiaRiskMapState
       ),
     );
   }
-
-  // ============================================================
-  // ERROR UI
-  // ============================================================
 
   Widget _buildError() {
     return AspectRatio(
@@ -290,10 +258,6 @@ class _CloudMalaysiaRiskMapState
     );
   }
 
-  // ============================================================
-  // MAP
-  // ============================================================
-
   Widget _buildMap(
       MalaysiaMapBoundary boundary,
       ) {
@@ -302,8 +266,7 @@ class _CloudMalaysiaRiskMapState
             .colorScheme;
 
     return AspectRatio(
-      // Malaysia is naturally wide.
-      // This lets the real shape breathe.
+
       aspectRatio:
       2.0,
       child: LayoutBuilder(
@@ -355,9 +318,6 @@ class _CloudMalaysiaRiskMapState
               ),
               child: Stack(
                 children: [
-                  // =============================================
-                  // MAP
-                  // =============================================
 
                   Positioned.fill(
                     child:
@@ -394,9 +354,6 @@ class _CloudMalaysiaRiskMapState
                     ),
                   ),
 
-                  // =============================================
-                  // DEFAULT HELPER
-                  // =============================================
 
                   if (widget
                       .selectedState ==
@@ -459,18 +416,11 @@ class _CloudMalaysiaRiskMapState
                       ),
                     ),
 
-                  // =============================================
-                  // SELECTED STATE
-                  // =============================================
 
                   if (widget
                       .selectedState !=
                       null)
                     _buildSelectedOverlay(),
-
-                  // =============================================
-                  // PIN
-                  // =============================================
 
                   if (widget
                       .selectedState !=
@@ -487,10 +437,6 @@ class _CloudMalaysiaRiskMapState
       ),
     );
   }
-
-  // ============================================================
-  // SELECTED OVERLAY
-  // ============================================================
 
   Widget _buildSelectedOverlay() {
     final selected =
@@ -620,10 +566,6 @@ class _CloudMalaysiaRiskMapState
     );
   }
 
-  // ============================================================
-  // PIN
-  // ============================================================
-
   Widget _buildPin(
       String state,
       ) {
@@ -680,10 +622,6 @@ class _CloudMalaysiaRiskMapState
     );
   }
 
-  // ============================================================
-  // PROJECT GEOJSON -> FLUTTER CANVAS
-  // ============================================================
-
   void _prepareProjection(
       MalaysiaMapBoundary boundary,
       Size size,
@@ -726,10 +664,6 @@ class _CloudMalaysiaRiskMapState
         size.height - 28,
       ),
     );
-
-    // ==========================================================
-    // KEEP REAL GEOGRAPHICAL PROPORTIONS
-    // ==========================================================
 
     final scaleX =
         targetRect.width /
@@ -775,8 +709,6 @@ class _CloudMalaysiaRiskMapState
                       .minLongitude) *
                   scale;
 
-      // Geo latitude goes UP.
-      // Flutter Y goes DOWN.
       final y =
           offsetY +
               (bounds.maxLatitude -
@@ -805,10 +737,6 @@ class _CloudMalaysiaRiskMapState
                 scale,
       );
     }
-
-    // ==========================================================
-    // BUILD STATE PATHS
-    // ==========================================================
 
     for (final state
     in boundary.states) {
@@ -859,12 +787,6 @@ class _CloudMalaysiaRiskMapState
       state.riskStateName] =
           statePath;
 
-      // ========================================================
-      // STATE LABEL / PIN POSITION
-      //
-      // BBox centre is enough for a national overview pin.
-      // ========================================================
-
       _projectedCentres[
       state.riskStateName] =
           projectLonLat(
@@ -876,19 +798,11 @@ class _CloudMalaysiaRiskMapState
     }
   }
 
-  // ============================================================
-  // TAP DETECTION
-  // ============================================================
-
   void _handleTap(
       TapDownDetails details,
       ) {
     final point =
         details.localPosition;
-
-    // ==========================================================
-    // TINY FEDERAL TERRITORIES FIRST
-    // ==========================================================
 
     const tinyStates = [
       'W.P. Kuala Lumpur',
@@ -913,10 +827,6 @@ class _CloudMalaysiaRiskMapState
         return;
       }
     }
-
-    // ==========================================================
-    // NORMAL STATES
-    // ==========================================================
 
     final entries =
         _projectedPaths.entries
@@ -943,10 +853,6 @@ class _CloudMalaysiaRiskMapState
     }
   }
 
-  // ============================================================
-  // SHORT STATE NAME
-  // ============================================================
-
   String _shortStateName(
       String state,
       ) {
@@ -966,9 +872,6 @@ class _CloudMalaysiaRiskMapState
   }
 }
 
-// ============================================================
-// PAINTER
-// ============================================================
 
 class _MalaysiaGeoJsonPainter
     extends CustomPainter {
@@ -996,9 +899,6 @@ class _MalaysiaGeoJsonPainter
       Canvas canvas,
       Size size,
       ) {
-    // ==========================================================
-    // DRAW NORMAL STATES FIRST
-    // ==========================================================
 
     for (final entry
     in paths.entries) {
@@ -1054,12 +954,6 @@ class _MalaysiaGeoJsonPainter
         border,
       );
     }
-
-    // ==========================================================
-    // DRAW SELECTED STATE LAST
-    //
-    // Gives it visual priority.
-    // ==========================================================
 
     if (selectedState != null) {
       final selectedPath =

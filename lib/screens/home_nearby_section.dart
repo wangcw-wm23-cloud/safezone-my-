@@ -1,9 +1,7 @@
 part of 'home_screen.dart';
 
 extension _HomeNearbySection on _HomeScreenState {
-  // ============================================================
-  // NEARBY ALERT PREVIEW
-  // ============================================================
+
 
   Widget _buildNearbyAlertsPreview() {
     if (_nearbyAlerts.isEmpty) {
@@ -51,9 +49,6 @@ extension _HomeNearbySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // ALERT LIST ITEM
-  // ============================================================
 
   Widget _buildAlertListItem(_NearbyAlert alert) {
     final color = _alertColor(alert.category);
@@ -110,9 +105,6 @@ extension _HomeNearbySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // SHOW NEARBY ALERTS
-  // ============================================================
 
   Future<void> _showNearbyAlerts() async {
     await _loadNearbyAlerts();
@@ -234,9 +226,6 @@ extension _HomeNearbySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // ALERT DETAILS
-  // ============================================================
 
   Future<void> _showAlertDetails(_NearbyAlert alert) async {
     final color = _alertColor(alert.category);

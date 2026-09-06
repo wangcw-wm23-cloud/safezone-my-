@@ -38,8 +38,7 @@ class _ResetPasswordScreenState
     });
 
     try {
-      // Recovery link should already have created
-      // a temporary Supabase session.
+
       if (supabase.auth.currentSession == null) {
         throw const AuthException(
           'Password recovery session is invalid or expired. '
@@ -53,7 +52,7 @@ class _ResetPasswordScreenState
         ),
       );
 
-      // Password changed successfully.
+
       await supabase.auth.signOut();
 
       if (!mounted) return;

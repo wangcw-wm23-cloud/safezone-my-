@@ -27,9 +27,6 @@ class DeviceBindingService {
   final SupabaseClient supabase =
       Supabase.instance.client;
 
-  // ============================================================
-  // DEVICE ID
-  // ============================================================
 
   Future<String> getOrCreateDeviceId() async {
     final existing = await _storage.read(
@@ -59,10 +56,6 @@ class DeviceBindingService {
     return deviceId;
   }
 
-  // ============================================================
-  // ACTIVE DEVICE ROWS
-  // ============================================================
-
   Future<List<Map<String, dynamic>>>
   _getActiveDevices() async {
     final user = supabase.auth.currentUser;
@@ -86,10 +79,6 @@ class DeviceBindingService {
     return result;
   }
 
-  // ============================================================
-  // BINDING STATUS
-  // ============================================================
-
   Future<DeviceBindingStatus>
   getBindingStatus() async {
     final user = supabase.auth.currentUser;
@@ -104,12 +93,10 @@ class DeviceBindingService {
     final activeDevices =
     await _getActiveDevices();
 
-    // User has not chosen to bind any device.
     if (activeDevices.isEmpty) {
       return DeviceBindingStatus.notBound;
     }
 
-    // Database should not contain more than one active device.
     if (activeDevices.length > 1) {
       return DeviceBindingStatus
           .invalidMultipleDevices;
@@ -126,19 +113,6 @@ class DeviceBindingService {
 
     return DeviceBindingStatus.anotherDevice;
   }
-
-  // ============================================================
-  // APP ACCESS CHECK
-  //
-  // Not bound:
-  // allow access.
-  //
-  // Same device:
-  // allow access.
-  //
-  // Another device:
-  // reject access.
-  // ============================================================
 
   Future<bool> checkDeviceBinding() async {
     final status =
@@ -159,13 +133,6 @@ class DeviceBindingService {
     return false;
   }
 
-  // ============================================================
-  // SOS CHECK
-  //
-  // Unlike normal App access, SOS requires the current
-  // device to be formally bound.
-  // ============================================================
-
   Future<bool> isCurrentDeviceBound() async {
     final status =
     await getBindingStatus();
@@ -173,10 +140,6 @@ class DeviceBindingService {
     return status ==
         DeviceBindingStatus.currentDevice;
   }
-
-  // ============================================================
-  // GET ACTIVE DEVICE
-  // ============================================================
 
   Future<Map<String, dynamic>?>
   getActiveDevice() async {
@@ -189,10 +152,6 @@ class DeviceBindingService {
 
     return devices.first;
   }
-
-  // ============================================================
-  // USER PRESSES "BIND THIS DEVICE"
-  // ============================================================
 
   Future<void> bindCurrentDevice() async {
     final user = supabase.auth.currentUser;
@@ -268,10 +227,6 @@ class DeviceBindingService {
     }
   }
 
-  // ============================================================
-  // UPDATE LAST SEEN
-  // ============================================================
-
   Future<void> updateLastSeen() async {
     final user = supabase.auth.currentUser;
 
@@ -296,10 +251,6 @@ class DeviceBindingService {
         .eq('device_id', deviceId)
         .eq('is_active', true);
   }
-
-  // ============================================================
-  // REMOVE CURRENT DEVICE BINDING
-  // ============================================================
 
   Future<void> unbindCurrentDevice() async {
     final user = supabase.auth.currentUser;
@@ -335,10 +286,6 @@ class DeviceBindingService {
         .eq('device_id', deviceId)
         .eq('is_active', true);
   }
-
-  // ============================================================
-  // DEVICE DETAILS
-  // ============================================================
 
   String getPlatformName() {
     if (kIsWeb) {

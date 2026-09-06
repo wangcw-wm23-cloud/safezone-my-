@@ -1,16 +1,8 @@
 part of 'home_screen.dart';
 
-// ============================================================
-// NEARBY ALERT CATEGORY
-// ============================================================
 
 enum _NearbyAlertCategory { sos, accident, suspicious, medical, other }
 
-// ============================================================
-// NEARBY ALERT MODEL
-//
-// Later this will be created from Supabase sos_incidents.
-// ============================================================
 
 class _NearbyAlert {
   final String id;

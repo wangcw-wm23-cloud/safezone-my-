@@ -88,12 +88,6 @@ class DataGovCrimeService {
 
   static const String _datasetId = 'crime_district';
 
-  /// Dataset values used by data.gov.my.
-  ///
-  /// W.P. Putrajaya is subsumed under
-  /// W.P. Kuala Lumpur.
-  ///
-  /// W.P. Labuan is subsumed under Sabah.
   static const List<String> states = [
     'Johor',
     'Kedah',
@@ -111,18 +105,14 @@ class DataGovCrimeService {
     'W.P. Kuala Lumpur',
   ];
 
-  /// Fetch all crime records for one state.
-  ///
-  /// Uses data.gov.my OpenAPI.
   Future<List<CrimeRecord>> getCrimeRecordsByState(String state) async {
     final uri = Uri.https(_baseUrl, '/data-catalogue', {
       'id': _datasetId,
 
-      // Case-insensitive exact match.
+
       'ifilter': '$state@state',
 
-      // Crime dataset for one state should
-      // comfortably fit inside this limit.
+
       'limit': '1000',
 
       'sort': 'date',
@@ -143,12 +133,11 @@ class DataGovCrimeService {
 
     List<dynamic> rows;
 
-    // Normal Data Catalogue response.
+
     if (decoded is List) {
       rows = decoded;
     }
-    // Also support meta=true style response
-    // if the API format changes.
+
     else if (decoded is Map<String, dynamic>) {
       final possibleData =
           decoded['data'] ?? decoded['results'] ?? decoded['records'];

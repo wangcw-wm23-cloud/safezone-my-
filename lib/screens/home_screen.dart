@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'identity_verification_screen.dart';
 import '../models/coordination_models.dart';
 import '../services/device_binding_service.dart';
 import '../services/emergency_coordination_service.dart';

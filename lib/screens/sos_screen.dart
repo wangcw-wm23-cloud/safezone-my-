@@ -3,15 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/sos_service.dart';
 import 'active_sos_screen.dart';
 
-// ============================================================
-// SOS SCREEN
-//
-// User selects one emergency category,
-// then presses SEND SOS.
-//
-// No additional confirmation screen.
-// ============================================================
-
 class SosScreen extends StatefulWidget {
   const SosScreen({
     super.key,
@@ -28,10 +19,6 @@ class _SosScreenState
       'unsure';
 
   bool _sending = false;
-
-  // ============================================================
-  // CATEGORIES
-  // ============================================================
 
   final List<_SosCategoryOption>
   _categories = const [
@@ -114,10 +101,6 @@ class _SosScreenState
     ),
   ];
 
-  // ============================================================
-  // SEND SOS
-  // ============================================================
-
   Future<void> _sendSos() async {
     if (_sending) {
       return;
@@ -185,10 +168,6 @@ class _SosScreenState
     );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(
       BuildContext context,
@@ -206,9 +185,6 @@ class _SosScreenState
         child:
         Column(
           children: [
-            // ==================================================
-            // HEADER
-            // ==================================================
 
             Padding(
               padding:
@@ -283,9 +259,6 @@ class _SosScreenState
               ),
             ),
 
-            // ==================================================
-            // CATEGORY LIST
-            // ==================================================
 
             Expanded(
               child:
@@ -322,10 +295,6 @@ class _SosScreenState
                 },
               ),
             ),
-
-            // ==================================================
-            // SEND BUTTON
-            // ==================================================
 
             Container(
               padding:
@@ -447,10 +416,6 @@ class _SosScreenState
       ),
     );
   }
-
-  // ============================================================
-  // CATEGORY
-  // ============================================================
 
   Widget _buildCategory(
       _SosCategoryOption option,
@@ -612,9 +577,6 @@ class _SosScreenState
   }
 }
 
-// ============================================================
-// CATEGORY OPTION
-// ============================================================
 
 class _SosCategoryOption {
   final String value;

@@ -2,36 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
-// ============================================================
-// LOCATION RESULT
-// ============================================================
-
 class SafeZoneLocationResult {
   final double latitude;
   final double longitude;
 
   final double? accuracy;
 
-  // ==========================================================
-  // HUMAN READABLE LOCATION
-  // ==========================================================
 
   final String locationName;
 
   final String district;
-
-  // ==========================================================
-  // NORMALIZED STATE NAME
-  //
-  // This is designed to match StateRiskService:
-  //
-  // Selangor
-  // Johor
-  // W.P. Kuala Lumpur
-  // W.P. Putrajaya
-  // W.P. Labuan
-  // etc.
-  // ==========================================================
 
   final String? state;
 
@@ -57,9 +37,6 @@ class SafeZoneLocationResult {
   });
 }
 
-// ============================================================
-// LOCATION EXCEPTIONS
-// ============================================================
 
 enum SafeZoneLocationErrorType {
   serviceDisabled,
@@ -69,9 +46,6 @@ enum SafeZoneLocationErrorType {
   unableToDetermineArea,
 }
 
-// ============================================================
-// LOCATION EXCEPTION
-// ============================================================
 
 class SafeZoneLocationException implements Exception {
   final SafeZoneLocationErrorType type;
@@ -89,9 +63,7 @@ class SafeZoneLocationException implements Exception {
   }
 }
 
-// ============================================================
-// LOCATION SERVICE
-// ============================================================
+
 
 class LocationService {
   LocationService._();
@@ -101,25 +73,11 @@ class LocationService {
 
   final Geocoding _geocoding = Geocoding();
 
-  // ============================================================
-  // GET CURRENT LOCATION
-  //
-  // Full flow:
-  //
-  // 1. Check GPS
-  // 2. Check permission
-  // 3. Ask permission if needed
-  // 4. Get coordinates
-  // 5. Reverse geocode
-  // 6. Normalize Malaysian state
-  // ============================================================
+
 
   Future<SafeZoneLocationResult>
   getCurrentLocation() async {
-    // ==========================================================
-    // STEP 1:
-    // CHECK LOCATION SERVICE
-    // ==========================================================
+
 
     final serviceEnabled =
     await Geolocator.isLocationServiceEnabled();
@@ -133,18 +91,11 @@ class LocationService {
       );
     }
 
-    // ==========================================================
-    // STEP 2:
-    // CHECK PERMISSION
-    // ==========================================================
 
     LocationPermission permission =
     await Geolocator.checkPermission();
 
-    // ==========================================================
-    // STEP 3:
-    // REQUEST PERMISSION
-    // ==========================================================
+
 
     if (permission ==
         LocationPermission.denied) {
@@ -152,9 +103,6 @@ class LocationService {
       await Geolocator.requestPermission();
     }
 
-    // ==========================================================
-    // STILL DENIED
-    // ==========================================================
 
     if (permission ==
         LocationPermission.denied) {
@@ -166,9 +114,6 @@ class LocationService {
       );
     }
 
-    // ==========================================================
-    // DENIED FOREVER
-    // ==========================================================
 
     if (permission ==
         LocationPermission.deniedForever) {
@@ -181,10 +126,6 @@ class LocationService {
       );
     }
 
-    // ==========================================================
-    // STEP 4:
-    // GET GPS POSITION
-    // ==========================================================
 
     Position position;
 
@@ -206,9 +147,6 @@ class LocationService {
         'GET GPS POSITION ERROR: $e',
       );
 
-      // ========================================================
-      // TRY LAST KNOWN POSITION
-      // ========================================================
 
       final lastPosition =
       await Geolocator.getLastKnownPosition();
@@ -251,10 +189,6 @@ class LocationService {
       '============================================',
     );
 
-    // ==========================================================
-    // STEP 5:
-    // REVERSE GEOCODING
-    // ==========================================================
 
     Placemark? placemark;
 
@@ -275,12 +209,6 @@ class LocationService {
       );
     }
 
-    // ==========================================================
-    // IF GEOCODING FAILS
-    //
-    // GPS is still valid.
-    // We return coordinates without pretending we know the state.
-    // ==========================================================
 
     if (placemark == null) {
       return SafeZoneLocationResult(
@@ -316,9 +244,6 @@ class LocationService {
       );
     }
 
-    // ==========================================================
-    // RAW LOCATION FIELDS
-    // ==========================================================
 
     final rawState =
     _clean(
@@ -355,10 +280,6 @@ class LocationService {
       placemark.postalCode,
     );
 
-    // ==========================================================
-    // NORMALIZE STATE
-    // ==========================================================
-
     final normalizedState =
     normalizeMalaysiaState(
       rawState ??
@@ -366,18 +287,6 @@ class LocationService {
           subAdministrativeArea ??
           '',
     );
-
-    // ==========================================================
-    // LOCATION NAME
-    //
-    // Prefer:
-    //
-    // Sub-locality
-    // Locality
-    // District
-    // Street
-    // Current Location
-    // ==========================================================
 
     final locationName =
     _firstUseful(
@@ -391,16 +300,6 @@ class LocationService {
       fallback:
       'Current Location',
     );
-
-    // ==========================================================
-    // DISTRICT
-    //
-    // Important:
-    // This is a human-readable current area label.
-    //
-    // It is NOT automatically assumed to be the official
-    // PDRM Police District used by crime_district.
-    // ==========================================================
 
     final district =
     _firstUseful(
@@ -488,29 +387,16 @@ class LocationService {
     );
   }
 
-  // ============================================================
-  // OPEN DEVICE LOCATION SETTINGS
-  // ============================================================
 
   Future<bool> openLocationSettings() {
     return Geolocator.openLocationSettings();
   }
 
-  // ============================================================
-  // OPEN APP SETTINGS
-  // ============================================================
 
   Future<bool> openAppSettings() {
     return Geolocator.openAppSettings();
   }
 
-  // ============================================================
-  // NORMALIZE MALAYSIAN STATE NAME
-  //
-  // IMPORTANT:
-  //
-  // Output must match StateRiskService keys.
-  // ============================================================
 
   String? normalizeMalaysiaState(
       String value,
@@ -524,9 +410,7 @@ class LocationService {
       return null;
     }
 
-    // ==========================================================
-    // JOHOR
-    // ==========================================================
+
 
     if (clean.contains(
       'johor',
@@ -534,9 +418,6 @@ class LocationService {
       return 'Johor';
     }
 
-    // ==========================================================
-    // KEDAH
-    // ==========================================================
 
     if (clean.contains(
       'kedah',
@@ -544,19 +425,12 @@ class LocationService {
       return 'Kedah';
     }
 
-    // ==========================================================
-    // KELANTAN
-    // ==========================================================
 
     if (clean.contains(
       'kelantan',
     )) {
       return 'Kelantan';
     }
-
-    // ==========================================================
-    // MELAKA / MALACCA
-    // ==========================================================
 
     if (clean.contains(
       'melaka',
@@ -567,9 +441,6 @@ class LocationService {
       return 'Melaka';
     }
 
-    // ==========================================================
-    // NEGERI SEMBILAN
-    // ==========================================================
 
     if (clean.contains(
       'negeri sembilan',
@@ -580,9 +451,7 @@ class LocationService {
       return 'Negeri Sembilan';
     }
 
-    // ==========================================================
-    // PAHANG
-    // ==========================================================
+
 
     if (clean.contains(
       'pahang',
@@ -590,9 +459,7 @@ class LocationService {
       return 'Pahang';
     }
 
-    // ==========================================================
-    // PERAK
-    // ==========================================================
+
 
     if (clean.contains(
       'perak',
@@ -600,9 +467,7 @@ class LocationService {
       return 'Perak';
     }
 
-    // ==========================================================
-    // PERLIS
-    // ==========================================================
+
 
     if (clean.contains(
       'perlis',
@@ -610,9 +475,7 @@ class LocationService {
       return 'Perlis';
     }
 
-    // ==========================================================
-    // PENANG / PULAU PINANG
-    // ==========================================================
+
 
     if (clean.contains(
       'pulau pinang',
@@ -623,9 +486,6 @@ class LocationService {
       return 'Pulau Pinang';
     }
 
-    // ==========================================================
-    // SABAH
-    // ==========================================================
 
     if (clean.contains(
       'sabah',
@@ -633,9 +493,7 @@ class LocationService {
       return 'Sabah';
     }
 
-    // ==========================================================
-    // SARAWAK
-    // ==========================================================
+
 
     if (clean.contains(
       'sarawak',
@@ -643,9 +501,6 @@ class LocationService {
       return 'Sarawak';
     }
 
-    // ==========================================================
-    // SELANGOR
-    // ==========================================================
 
     if (clean.contains(
       'selangor',
@@ -653,9 +508,7 @@ class LocationService {
       return 'Selangor';
     }
 
-    // ==========================================================
-    // TERENGGANU
-    // ==========================================================
+
 
     if (clean.contains(
       'terengganu',
@@ -666,11 +519,7 @@ class LocationService {
       return 'Terengganu';
     }
 
-    // ==========================================================
-    // PUTRAJAYA
-    //
-    // Check before Kuala Lumpur.
-    // ==========================================================
+
 
     if (clean.contains(
       'putrajaya',
@@ -678,9 +527,6 @@ class LocationService {
       return 'W.P. Putrajaya';
     }
 
-    // ==========================================================
-    // LABUAN
-    // ==========================================================
 
     if (clean.contains(
       'labuan',
@@ -688,9 +534,6 @@ class LocationService {
       return 'W.P. Labuan';
     }
 
-    // ==========================================================
-    // KUALA LUMPUR
-    // ==========================================================
 
     if (clean.contains(
       'kuala lumpur',
@@ -701,10 +544,6 @@ class LocationService {
 
     return null;
   }
-
-  // ============================================================
-  // CLEAN STRING
-  // ============================================================
 
   String? _clean(
       String? value,
@@ -723,9 +562,6 @@ class LocationService {
     return clean;
   }
 
-  // ============================================================
-  // FIRST USEFUL VALUE
-  // ============================================================
 
   String _firstUseful(
       List<String?> values, {

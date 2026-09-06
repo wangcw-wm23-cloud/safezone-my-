@@ -42,12 +42,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: email,
         password: password,
 
-        // After the user verifies the email,
-        // Supabase can redirect back to SafeZone.
+
         emailRedirectTo: 'safezone://verify-email',
 
-        // Stored inside auth.users raw_user_meta_data.
-        // Our Supabase trigger will copy this into public.profiles.
+
         data: {
           'full_name': fullName,
         },
@@ -69,11 +67,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // Registration successful.
-      // Pass both email and Supabase User ID to VerifiedScreen.
-      //
-      // userId is needed so the verification screen can
-      // automatically check Supabase backend every few seconds.
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

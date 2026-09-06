@@ -27,17 +27,11 @@ class _PersonalInformationScreenState
 
   String _currentEmail = '';
 
-  // Phone saved in database, without +60.
-  // Example:
-  // Database = +60123456789
-  // Stored digits = 123456789
+
   String _storedPhoneDigits = '';
 
   bool _storedPhoneVerified = false;
 
-  // ============================================================
-  // TESTING OTP
-  // ============================================================
 
   static const String _testingOtp = '123456';
 
@@ -48,18 +42,7 @@ class _PersonalInformationScreenState
     _loadProfile();
   }
 
-  // ============================================================
-  // PHONE HELPERS
-  // ============================================================
 
-  /// Convert any supported Malaysia number into digits
-  /// after +60.
-  ///
-  /// Examples:
-  /// +60123456789 -> 123456789
-  /// 60123456789  -> 123456789
-  /// 0123456789   -> 123456789
-  /// 123456789    -> 123456789
   String _normalizeMalaysiaPhoneDigits(String value) {
     String digits =
     value.replaceAll(
@@ -82,15 +65,7 @@ class _PersonalInformationScreenState
     return digits;
   }
 
-  /// Malaysia mobile number format after +60.
-  ///
-  /// Examples:
-  /// +60123456789
-  /// +601112345678
-  ///
-  /// After +60:
-  /// starts with 1
-  /// followed by 8 or 9 digits.
+
   bool _isValidMalaysiaMobile(
       String value,
       ) {
@@ -128,9 +103,6 @@ class _PersonalInformationScreenState
         current == _storedPhoneDigits;
   }
 
-  // ============================================================
-  // LOAD PROFILE
-  // ============================================================
 
   Future<void> _loadProfile() async {
     final user =
@@ -221,9 +193,6 @@ class _PersonalInformationScreenState
     }
   }
 
-  // ============================================================
-  // SAVE PERSONAL INFORMATION
-  // ============================================================
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!
@@ -263,8 +232,7 @@ class _PersonalInformationScreenState
           'full_name': newName,
           'phone_number': fullPhone,
 
-          // Changing number means it must
-          // be verified again.
+
           'phone_verified':
           phoneChanged
               ? false
@@ -280,7 +248,7 @@ class _PersonalInformationScreenState
         user.id,
       );
 
-      // Keep Auth metadata synchronized.
+
       await supabase.auth.updateUser(
         UserAttributes(
           data: {
@@ -357,9 +325,6 @@ class _PersonalInformationScreenState
     }
   }
 
-  // ============================================================
-  // PHONE VERIFICATION
-  // ============================================================
 
   Future<void> _verifyPhone() async {
     final user =
@@ -393,9 +358,6 @@ class _PersonalInformationScreenState
     final fullPhone =
         '+60$digits';
 
-    // Prototype:
-    // SMS delivery is simulated.
-    // Verification OTP is fixed at 123456.
 
     final bool? verified =
     await showDialog<bool>(
@@ -484,10 +446,6 @@ class _PersonalInformationScreenState
     }
   }
 
-  // ============================================================
-  // CHANGE EMAIL
-  // ============================================================
-
   Future<void> _changeEmail() async {
     final user =
         supabase.auth.currentUser;
@@ -575,10 +533,6 @@ class _PersonalInformationScreenState
     }
   }
 
-  // ============================================================
-  // CHANGE PASSWORD
-  // ============================================================
-
   Future<void> _changePassword() async {
     final String? newPassword =
     await showDialog<String>(
@@ -640,10 +594,6 @@ class _PersonalInformationScreenState
     }
   }
 
-  // ============================================================
-  // DISPOSE
-  // ============================================================
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -652,9 +602,6 @@ class _PersonalInformationScreenState
     super.dispose();
   }
 
-  // ============================================================
-  // UI
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -684,9 +631,6 @@ class _PersonalInformationScreenState
               CrossAxisAlignment
                   .stretch,
               children: [
-                // ==================================================
-                // PROFILE
-                // ==================================================
 
                 Center(
                   child:
@@ -771,10 +715,6 @@ class _PersonalInformationScreenState
                   height: 14,
                 ),
 
-                // ==================================================
-                // NAME
-                // ==================================================
-
                 TextFormField(
                   controller:
                   _nameController,
@@ -819,10 +759,6 @@ class _PersonalInformationScreenState
                   height: 18,
                 ),
 
-                // ==================================================
-                // MALAYSIA PHONE
-                // ==================================================
-
                 TextFormField(
                   controller:
                   _phoneController,
@@ -859,7 +795,6 @@ class _PersonalInformationScreenState
                           .phone_outlined,
                     ),
 
-                    // Fixed Malaysia country code.
                     prefixText:
                     '+60 ',
 
@@ -904,9 +839,6 @@ class _PersonalInformationScreenState
                   height: 8,
                 ),
 
-                // ==================================================
-                // PHONE VERIFICATION STATUS
-                // ==================================================
 
                 Row(
                   children: [
@@ -974,10 +906,6 @@ class _PersonalInformationScreenState
                   height: 18,
                 ),
 
-                // ==================================================
-                // SAVE
-                // ==================================================
-
                 SizedBox(
                   height: 52,
                   child:
@@ -1014,9 +942,6 @@ class _PersonalInformationScreenState
                   height: 32,
                 ),
 
-                // ==================================================
-                // ACCOUNT SECURITY
-                // ==================================================
 
                 const Text(
                   'Account & Security',
@@ -1178,10 +1103,6 @@ class _PersonalInformationScreenState
   }
 }
 
-// ============================================================
-// PHONE OTP DIALOG
-// Prototype OTP = 123456
-// ============================================================
 
 class _PhoneOtpDialog
     extends StatefulWidget {
@@ -1441,10 +1362,6 @@ class _PhoneOtpDialogState
   }
 }
 
-// ============================================================
-// CHANGE EMAIL DIALOG
-// ============================================================
-
 class _ChangeEmailDialog
     extends StatefulWidget {
   final String currentEmail;
@@ -1578,10 +1495,6 @@ class _ChangeEmailDialogState
     );
   }
 }
-
-// ============================================================
-// CHANGE PASSWORD DIALOG
-// ============================================================
 
 class _ChangePasswordDialog
     extends StatefulWidget {

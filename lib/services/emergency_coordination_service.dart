@@ -15,10 +15,6 @@ class EmergencyCoordinationService {
   final SupabaseClient supabase =
       Supabase.instance.client;
 
-  // ============================================================
-  // INCIDENT REALTIME
-  // ============================================================
-
   Stream<SosIncident?> streamIncident(
       String incidentId,
       ) {
@@ -49,10 +45,6 @@ class EmergencyCoordinationService {
       },
     );
   }
-
-  // ============================================================
-  // HELPERS REALTIME
-  // ============================================================
 
   Stream<List<IncidentHelper>> streamHelpers(
       String incidentId,
@@ -94,10 +86,6 @@ class EmergencyCoordinationService {
     );
   }
 
-  // ============================================================
-  // CHAT REALTIME
-  // ============================================================
-
   Stream<List<IncidentMessage>> streamMessages(
       String incidentId,
       ) {
@@ -129,10 +117,6 @@ class EmergencyCoordinationService {
       },
     );
   }
-
-  // ============================================================
-  // GET NEARBY SOS
-  // ============================================================
 
   Future<List<NearbySosIncident>>
   getNearbyIncidents() async {
@@ -175,10 +159,6 @@ class EmergencyCoordinationService {
         .toList();
   }
 
-  // ============================================================
-  // GET CURRENT USER RESPONSE
-  // ============================================================
-
   Future<IncidentHelper?> getMyResponse(
       String incidentId,
       ) async {
@@ -213,10 +193,6 @@ class EmergencyCoordinationService {
       row,
     );
   }
-
-  // ============================================================
-  // I CAN HELP
-  // ============================================================
 
   Future<IncidentHelper> joinIncident({
     required String incidentId,
@@ -289,9 +265,6 @@ class EmergencyCoordinationService {
       ),
     );
 
-    // ==========================================================
-    // SQLITE HISTORY
-    // ==========================================================
 
     try {
       await LocalDatabaseService.instance
@@ -324,17 +297,11 @@ class EmergencyCoordinationService {
         true,
       );
     } catch (_) {
-      // Supabase join already succeeded.
-      // SQLite failure must not make the helper think
-      // that joining the SOS failed.
+
     }
 
     return helper;
   }
-
-  // ============================================================
-  // UPDATE HELPER LOCATION
-  // ============================================================
 
   Future<void> updateHelperLocation(
       String incidentId,
@@ -361,10 +328,6 @@ class EmergencyCoordinationService {
     );
   }
 
-  // ============================================================
-  // LEAVE HELP TEAM
-  // ============================================================
-
   Future<void> leaveIncident(
       String incidentId,
       ) async {
@@ -381,10 +344,6 @@ class EmergencyCoordinationService {
       'cancelled',
     );
   }
-
-  // ============================================================
-  // UPDATE SQLITE RESPONSE STATUS
-  // ============================================================
 
   Future<void> updateLocalResponseStatus(
       String incidentId,
@@ -427,13 +386,8 @@ class EmergencyCoordinationService {
         ],
       );
     } catch (_) {
-      // Supabase remains the main data source.
     }
   }
-
-  // ============================================================
-  // SEND CHAT MESSAGE
-  // ============================================================
 
   Future<void> sendMessage({
     required String incidentId,
@@ -478,10 +432,6 @@ class EmergencyCoordinationService {
       },
     );
   }
-
-  // ============================================================
-  // CATEGORY NAME
-  // ============================================================
 
   String _categoryName(
       String value,

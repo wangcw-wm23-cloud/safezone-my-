@@ -1,9 +1,7 @@
 part of 'home_screen.dart';
 
 extension _HomeActivitySection on _HomeScreenState {
-  // ============================================================
-  // ACTIVITY PAGE
-  // ============================================================
+
 
   Widget _buildActivityPage() {
     return SafeArea(

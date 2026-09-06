@@ -31,9 +31,6 @@ class _IdentityVerificationScreenState
 
   String? _error;
 
-  // ============================================================
-  // INIT
-  // ============================================================
 
   @override
   void initState() {
@@ -75,9 +72,6 @@ class _IdentityVerificationScreenState
     }
   }
 
-  // ============================================================
-  // SCAN ID CARD
-  // ============================================================
 
   Future<void> _scanIc() async {
     setState(() {
@@ -179,9 +173,6 @@ class _IdentityVerificationScreenState
     }
   }
 
-  // ============================================================
-  // CONTINUE TO FACE
-  // ============================================================
 
   void _continueToFace() {
     final name = _nameController.text.trim();
@@ -205,15 +196,6 @@ class _IdentityVerificationScreenState
     });
   }
 
-  // ============================================================
-  // FACE SCAN
-  //
-  // PROTOTYPE ONLY.
-  //
-  // A selfie is captured, but no biometric matching is done.
-  //
-  // Any completed capture passes this demonstration flow.
-  // ============================================================
 
   Future<void> _startFaceScan() async {
     final image = await _picker.pickImage(
@@ -261,9 +243,6 @@ class _IdentityVerificationScreenState
     }
   }
 
-  // ============================================================
-  // SAVE VERIFICATION
-  // ============================================================
 
   Future<void> _completeVerification() async {
     if (!_icScanned || !_facePassed) {
@@ -307,9 +286,6 @@ class _IdentityVerificationScreenState
     }
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -351,9 +327,6 @@ class _IdentityVerificationScreenState
     );
   }
 
-  // ============================================================
-  // PROGRESS
-  // ============================================================
 
   Widget _buildProgress() {
     return Row(
@@ -416,9 +389,6 @@ class _IdentityVerificationScreenState
     );
   }
 
-  // ============================================================
-  // IC STEP
-  // ============================================================
 
   Widget _buildIcStep() {
     return Column(
@@ -513,9 +483,6 @@ class _IdentityVerificationScreenState
     );
   }
 
-  // ============================================================
-  // FACE STEP
-  // ============================================================
 
   Widget _buildFaceStep() {
     return Column(
@@ -590,9 +557,6 @@ class _IdentityVerificationScreenState
     );
   }
 
-  // ============================================================
-  // REVIEW STEP
-  // ============================================================
 
   Widget _buildReviewStep() {
     return Column(
@@ -636,9 +600,6 @@ class _IdentityVerificationScreenState
     );
   }
 
-  // ============================================================
-  // VERIFIED
-  // ============================================================
 
   Widget _buildVerifiedScreen() {
     return Column(

@@ -42,10 +42,6 @@ class LocalDatabaseService {
     );
   }
 
-  // ============================================================
-  // CREATE DATABASE
-  // ============================================================
-
   Future<void> _createDatabase(
       Database db,
       int version,
@@ -154,13 +150,6 @@ class LocalDatabaseService {
     );
   }
 
-  // ============================================================
-  // INSERT OR UPDATE ACTIVITY
-  //
-  // If the same incident already exists, update it instead of
-  // creating a duplicate Activity record.
-  // ============================================================
-
   Future<int> insertActivity({
     required String userId,
     String? incidentId,
@@ -234,10 +223,6 @@ class LocalDatabaseService {
     );
   }
 
-  // ============================================================
-  // GET ACTIVITIES
-  // ============================================================
-
   Future<List<Map<String, dynamic>>>
   getActivities(
       String userId,
@@ -251,10 +236,6 @@ class LocalDatabaseService {
       orderBy: 'created_at DESC',
     );
   }
-
-  // ============================================================
-  // UPDATE USING LOCAL ID
-  // ============================================================
 
   Future<void> updateActivityStatus({
     required int id,
@@ -283,10 +264,6 @@ class LocalDatabaseService {
       whereArgs: [id],
     );
   }
-
-  // ============================================================
-  // UPDATE USING SUPABASE INCIDENT ID
-  // ============================================================
 
   Future<void> updateActivityByIncident({
     required String userId,
@@ -332,10 +309,6 @@ class LocalDatabaseService {
       whereArgs: [userId],
     );
   }
-
-  // ============================================================
-  // CRIME CACHE
-  // ============================================================
 
   Future<void> cacheCrimeRecord({
     required String state,
@@ -436,13 +409,6 @@ class LocalDatabaseService {
     );
   }
 
-  // ============================================================
-  // PENDING SYNC INFRASTRUCTURE
-  //
-  // This table is prepared for future offline operations.
-  // It does not mean an offline SOS was successfully broadcast.
-  // ============================================================
-
   Future<int> addPendingSync({
     required String userId,
     required String action,
@@ -539,9 +505,6 @@ class LocalDatabaseService {
     );
   }
 
-  // ============================================================
-  // DATABASE STATS
-  // ============================================================
 
   Future<Map<String, int>>
   getDatabaseStats() async {

@@ -35,10 +35,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
     _loadGovernmentData();
   }
 
-  // ============================================================
-  // LOAD DATA.GOV.MY
-  // ============================================================
-
   Future<void> _loadGovernmentData() async {
     setState(() {
       _isLoading = true;
@@ -97,10 +93,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
     });
   }
 
-  // ============================================================
-  // UI
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -109,9 +101,7 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
           children: [
-            // ==================================================
-            // TITLE
-            // ==================================================
+
             const Text(
               'Safety Insights',
               style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold),
@@ -127,9 +117,7 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
             const SizedBox(height: 26),
 
-            // ==================================================
-            // GOVERNMENT HEADER
-            // ==================================================
+
             _sectionHeader(
               icon: Icons.account_balance_outlined,
               title: 'Government Crime Data',
@@ -138,9 +126,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
             const SizedBox(height: 14),
 
-            // ==================================================
-            // FILTER
-            // ==================================================
             Container(
               padding: const EdgeInsets.all(18),
               decoration: _cardDecoration(),
@@ -234,9 +219,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
             const SizedBox(height: 34),
 
-            // ==================================================
-            // SAFEZONE SECTION
-            // ==================================================
             _sectionHeader(
               icon: Icons.shield_outlined,
               title: 'SafeZone Community',
@@ -308,9 +290,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
     );
   }
 
-  // ============================================================
-  // GOVERNMENT CONTENT
-  // ============================================================
 
   List<Widget> _buildGovernmentContent(CrimeInsight insight) {
     if (insight.latestYear == 0) {
@@ -330,9 +309,7 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
     }
 
     return [
-      // ========================================================
-      // LAST AVAILABLE YEAR
-      // ========================================================
+
       Row(
         children: [
           Expanded(
@@ -381,9 +358,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
       const SizedBox(height: 20),
 
-      // ========================================================
-      // TREND
-      // ========================================================
       Container(
         padding: const EdgeInsets.all(18),
         decoration: _cardDecoration(),
@@ -414,9 +388,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
       const SizedBox(height: 20),
 
-      // ========================================================
-      // CRIME TYPES
-      // ========================================================
       Container(
         padding: const EdgeInsets.all(18),
         decoration: _cardDecoration(),
@@ -444,9 +415,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
       const SizedBox(height: 20),
 
-      // ========================================================
-      // AUTOMATED INSIGHTS
-      // ========================================================
       Container(
         padding: const EdgeInsets.all(18),
         decoration: _cardDecoration(),
@@ -489,9 +457,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
 
       const SizedBox(height: 16),
 
-      // ========================================================
-      // SOURCE
-      // ========================================================
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -539,9 +504,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
     ];
   }
 
-  // ============================================================
-  // TYPE ROWS
-  // ============================================================
 
   List<Widget> _buildTypeRows(CrimeInsight insight) {
     final entries = insight.typeTotals.entries.toList()
@@ -592,9 +554,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
     }).toList();
   }
 
-  // ============================================================
-  // ERROR
-  // ============================================================
 
   Widget _buildError() {
     return Container(
@@ -619,10 +578,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
       ),
     );
   }
-
-  // ============================================================
-  // HELPERS
-  // ============================================================
 
   Widget _sectionHeader({
     required IconData icon,
@@ -848,10 +803,6 @@ class _SafetyInsightsScreenState extends State<SafetyInsightsScreen> {
   }
 }
 
-// ============================================================
-// CRIME TREND CHART
-// No extra chart package needed.
-// ============================================================
 
 class CrimeTrendChart extends StatelessWidget {
   final Map<int, int> yearlyTotals;

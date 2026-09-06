@@ -59,10 +59,6 @@ class _RegisteredDeviceScreenState
     _loadDevice();
   }
 
-  // ============================================================
-  // LOAD DEVICE
-  // ============================================================
-
   Future<void> _loadDevice({
     bool showLoading = true,
   }) async {
@@ -129,13 +125,6 @@ class _RegisteredDeviceScreenState
     }
   }
 
-  // ============================================================
-  // BIND DEVICE
-  //
-  // Only called when the user presses the Bind button.
-  // Login will not automatically bind a device.
-  // ============================================================
-
   Future<void> _bindDevice() async {
     if (_isProcessing) {
       return;
@@ -190,10 +179,6 @@ class _RegisteredDeviceScreenState
       }
     }
   }
-
-  // ============================================================
-  // UNBIND DEVICE
-  // ============================================================
 
   Future<void> _unbindDevice() async {
     if (!_isCurrentDeviceBound ||
@@ -297,10 +282,6 @@ class _RegisteredDeviceScreenState
     }
   }
 
-  // ============================================================
-  // STATUS DISPLAY
-  // ============================================================
-
   String get _statusTitle {
     switch (_bindingStatus) {
       case DeviceBindingStatus.notBound:
@@ -374,10 +355,6 @@ class _RegisteredDeviceScreenState
     }
   }
 
-  // ============================================================
-  // FORMAT
-  // ============================================================
-
   String _shortDeviceId(
       String? id,
       ) {
@@ -415,10 +392,6 @@ class _RegisteredDeviceScreenState
         '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(
