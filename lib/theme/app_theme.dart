@@ -1,23 +1,18 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Main background
   static const Color background = Color(0xFF050816);
 
-  // Card / Surface
   static const Color surface = Color(0xFF0D1328);
   static const Color surfaceLight = Color(0xFF121A34);
 
-  // SafeZone brand colours
   static const Color purple = Color(0xFF7A5CFF);
   static const Color cyan = Color(0xFF3BE4FF);
 
-  // Status colours
   static const Color emergencyRed = Color(0xFFFF425D);
   static const Color safeGreen = Color(0xFF4CDB98);
   static const Color riskOrange = Color(0xFFFF8B3D);
 
-  // Text colours
   static const Color textPrimary = Color(0xFFF7F8FF);
   static const Color textSecondary = Color(0xFFA7B0C8);
 

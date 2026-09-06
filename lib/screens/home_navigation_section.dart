@@ -1,9 +1,7 @@
 part of 'home_screen.dart';
 
 extension _HomeNavigationSection on _HomeScreenState {
-  // ============================================================
-  // SOS BUTTON
-  // ============================================================
+
 
   Widget _buildSOSButton() {
     return SizedBox(
@@ -35,9 +33,7 @@ extension _HomeNavigationSection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // BOTTOM NAVIGATION
-  // ============================================================
+
 
   Widget _buildBottomNavigationBar() {
     final scheme = Theme.of(context).colorScheme;
@@ -91,9 +87,6 @@ extension _HomeNavigationSection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // BOTTOM NAVIGATION ITEM
-  // ============================================================
 
   Widget _bottomNavItem({
     required int index,

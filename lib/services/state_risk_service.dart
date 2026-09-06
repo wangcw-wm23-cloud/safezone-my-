@@ -5,17 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
-// ============================================================
-// STATE RISK DATA
-// ============================================================
 
 class StateRiskData {
   final String state;
 
-  // 2025 population used for UI display
   final int population2025;
 
-  // 2023 population actually used in the crime-rate formula
   final int populationUsedForRate;
 
   final int assaultCases;
@@ -102,10 +97,6 @@ class StateRiskData {
   }
 }
 
-// ============================================================
-// POLICE DISTRICT DATA
-// ============================================================
-
 class PoliceDistrictData {
   final String district;
 
@@ -122,9 +113,6 @@ class PoliceDistrictData {
       assaultCases + propertyCases;
 }
 
-// ============================================================
-// INTERNAL CRIME ROW
-// ============================================================
 
 class _CrimeRow {
   final String state;
@@ -139,10 +127,6 @@ class _CrimeRow {
     required this.crimes,
   });
 }
-
-// ============================================================
-// INTERNAL RAW STATE
-// ============================================================
 
 class _RawStateRisk {
   final String state;
@@ -166,9 +150,6 @@ class _RawStateRisk {
       assaultCases + propertyCases;
 }
 
-// ============================================================
-// STATE RISK SERVICE
-// ============================================================
 
 class StateRiskService {
   StateRiskService._();
@@ -176,19 +157,9 @@ class StateRiskService {
   static final StateRiskService instance =
   StateRiskService._();
 
-  // ============================================================
-  // CRIME YEAR
-  // ============================================================
 
   static const int crimeYear = 2023;
 
-  // ============================================================
-  // 2025 POPULATION
-  //
-  // Used ONLY for display in the Overview UI.
-  //
-  // Crime rate uses 2023 population instead.
-  // ============================================================
 
   static const Map<String, int> population2025 = {
     'Johor': 4205900,
@@ -209,9 +180,6 @@ class StateRiskService {
     'W.P. Putrajaya': 120800,
   };
 
-  // ============================================================
-  // OFFICIAL DATA SOURCES
-  // ============================================================
 
   static const String _crimeCsvUrl =
       'https://storage.data.gov.my/'
@@ -221,26 +189,15 @@ class StateRiskService {
       'https://storage.dosm.gov.my/'
       'population/population_state.csv';
 
-  // ============================================================
-  // DATABASE
-  // ============================================================
 
   Database? _database;
 
-  // Version 3 forces any old percentile cache to be removed.
   static const int _databaseVersion = 3;
-
-  // ============================================================
-  // MEMORY CACHE
-  // ============================================================
 
   List<_CrimeRow>? _memoryCrimeRows;
 
   Map<String, int>? _memoryPopulation2023;
 
-  // ============================================================
-  // DATABASE
-  // ============================================================
 
   Future<Database> _getDatabase() async {
     if (_database != null) {
@@ -290,9 +247,6 @@ class StateRiskService {
     return _database!;
   }
 
-  // ============================================================
-  // CREATE TABLE
-  // ============================================================
 
   Future<void> _createRiskTable(
       Database db,
@@ -317,16 +271,10 @@ class StateRiskService {
     );
   }
 
-  // ============================================================
-  // LOAD STATE RISKS
-  // ============================================================
 
   Future<List<StateRiskData>> loadStateRisks({
     bool refresh = false,
   }) async {
-    // ==========================================================
-    // SQLITE CACHE FIRST
-    // ==========================================================
 
     if (!refresh) {
       final cached =
@@ -337,9 +285,6 @@ class StateRiskService {
       }
     }
 
-    // ==========================================================
-    // ONLINE
-    // ==========================================================
 
     try {
       final fresh =
@@ -357,10 +302,6 @@ class StateRiskService {
         'STATE RISK ONLINE ERROR: $e',
       );
 
-      // ========================================================
-      // FALLBACK TO LOCAL CACHE
-      // ========================================================
-
       final cached =
       await _readStateCache();
 
@@ -372,9 +313,6 @@ class StateRiskService {
     }
   }
 
-  // ============================================================
-  // LOAD POLICE DISTRICT RANKING
-  // ============================================================
 
   Future<List<PoliceDistrictData>>
   loadPoliceDistrictRanking(
@@ -386,12 +324,6 @@ class StateRiskService {
       forceRefresh: refresh,
     );
 
-    // ==========================================================
-    // PDRM DATA GROUPING
-    //
-    // Putrajaya -> KL
-    // Labuan     -> Sabah
-    // ==========================================================
 
     String crimeState = state;
 
@@ -469,35 +401,23 @@ class StateRiskService {
     return result;
   }
 
-  // ============================================================
-  // CALCULATE STATE RISKS
-  // ============================================================
 
   Future<List<StateRiskData>>
   _calculateStateRisks({
     required bool forceRefresh,
   }) async {
-    // ==========================================================
-    // 1. LOAD 2023 CRIME
-    // ==========================================================
 
     final crimeRows =
     await _fetchCrimeRows(
       forceRefresh: forceRefresh,
     );
 
-    // ==========================================================
-    // 2. LOAD 2023 POPULATION
-    // ==========================================================
 
     final population2023 =
     await _fetchPopulation2023(
       forceRefresh: forceRefresh,
     );
 
-    // ==========================================================
-    // 3. GROUP CRIME BY STATE
-    // ==========================================================
 
     final Map<String, Map<String, int>>
     stateCrime = {};
@@ -508,16 +428,6 @@ class StateRiskService {
         continue;
       }
 
-      // ========================================================
-      // Ignore "All" district because we calculate from the
-      // actual district rows.
-      //
-      // Otherwise:
-      //
-      // district cases + state total cases
-      //
-      // would double-count the same crime.
-      // ========================================================
 
       if (row.district.toLowerCase() ==
           'all') {
@@ -547,13 +457,6 @@ class StateRiskService {
       }
     }
 
-    // ==========================================================
-    // 4. DIRECT CRIME GROUPS
-    //
-    // Putrajaya is inside KL crime data.
-    // Labuan is inside Sabah crime data.
-    // ==========================================================
-
     final directStates =
     population2025.keys.where(
           (
@@ -566,9 +469,6 @@ class StateRiskService {
     final rawRisks =
     <_RawStateRisk>[];
 
-    // ==========================================================
-    // 5. CALCULATE CRIME RATE PER 100,000
-    // ==========================================================
 
     for (final state in directStates) {
       final crime =
@@ -605,15 +505,6 @@ class StateRiskService {
         continue;
       }
 
-      // ========================================================
-      // CRIME RATE
-      //
-      // cases
-      // -----
-      // population
-      //
-      // × 100,000
-      // ========================================================
 
       final crimeRate =
           totalCases /
@@ -638,18 +529,6 @@ class StateRiskService {
             'Only ${rawRisks.length} comparable crime regions found.',
       );
     }
-
-    // ==========================================================
-    // 6. MALAYSIA NATIONAL BENCHMARK
-    //
-    // Weighted national rate:
-    //
-    // TOTAL CASES
-    // -----------
-    // TOTAL POPULATION
-    //
-    // × 100,000
-    // ==========================================================
 
     int malaysiaCrimeCases = 0;
     int malaysiaPopulation = 0;
@@ -679,9 +558,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // DEBUG NATIONAL RESULT
-    // ==========================================================
 
     debugPrint(
       '============================================',
@@ -714,26 +590,8 @@ class StateRiskService {
     final results =
     <StateRiskData>[];
 
-    // ==========================================================
-    // 7. STATE RISK SCORE
-    // ==========================================================
 
     for (final raw in rawRisks) {
-      // ========================================================
-      // EXAMPLE:
-      //
-      // Malaysia rate = 150
-      // State rate    = 150
-      //
-      // ratio = 1.0
-      // score = 50
-      //
-      //
-      // State rate = 180
-      //
-      // ratio = 1.2
-      // score = 60
-      // ========================================================
 
       final riskRatio =
           raw.crimeRate /
@@ -803,11 +661,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // 8. PUTRAJAYA
-    //
-    // Official crime data is inside Kuala Lumpur.
-    // ==========================================================
 
     StateRiskData? kl;
 
@@ -862,12 +715,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // 9. LABUAN
-    //
-    // Official crime data is inside Sabah.
-    // ==========================================================
-
     StateRiskData? sabah;
 
     for (final item in results) {
@@ -920,9 +767,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // SORT
-    // ==========================================================
 
     results.sort(
           (
@@ -937,21 +781,6 @@ class StateRiskService {
     return results;
   }
 
-  // ============================================================
-  // BENCHMARK RISK SCORE
-  //
-  // Malaysia average = 50
-  //
-  // 50% national average  = 25
-  //
-  // 100% national average = 50
-  //
-  // 120% national average = 60
-  //
-  // 160% national average = 80
-  //
-  // 200% national average = 100
-  // ============================================================
 
   int _benchmarkRiskScore(
       double riskRatio,
@@ -967,9 +796,6 @@ class StateRiskService {
     );
   }
 
-  // ============================================================
-  // RISK LEVEL
-  // ============================================================
 
   String _riskLevel(
       int score,
@@ -989,17 +815,10 @@ class StateRiskService {
     return 'VERY HIGH';
   }
 
-  // ============================================================
-  // FETCH OFFICIAL 2023 CRIME CSV
-  // ============================================================
-
   Future<List<_CrimeRow>>
   _fetchCrimeRows({
     required bool forceRefresh,
   }) async {
-    // ==========================================================
-    // MEMORY CACHE
-    // ==========================================================
 
     if (!forceRefresh &&
         _memoryCrimeRows != null &&
@@ -1007,9 +826,6 @@ class StateRiskService {
       return _memoryCrimeRows!;
     }
 
-    // ==========================================================
-    // DOWNLOAD OFFICIAL PDRM / DATA.GOV.MY CSV
-    // ==========================================================
 
     final response =
     await http
@@ -1047,9 +863,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // HEADER
-    // ==========================================================
 
     final header =
     _splitCsvLine(
@@ -1108,15 +921,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // We first try to use type = "all".
-    //
-    // This prevents:
-    //
-    // all + robbery + theft + ...
-    //
-    // from being double-counted.
-    // ==========================================================
 
     final allTypeRows =
     <_CrimeRow>[];
@@ -1220,13 +1024,6 @@ class StateRiskService {
       }
     }
 
-    // ==========================================================
-    // PREFERRED:
-    // category totals where type = all
-    //
-    // FALLBACK:
-    // add individual crime types if the dataset format changes.
-    // ==========================================================
 
     final result =
     allTypeRows.isNotEmpty
@@ -1250,25 +1047,11 @@ class StateRiskService {
     return result;
   }
 
-  // ============================================================
-  // FETCH OFFICIAL 2023 POPULATION CSV
-  //
-  // population_state does NOT support OpenAPI.
-  //
-  // Official CSV:
-  //
-  // storage.dosm.gov.my/population/population_state.csv
-  //
-  // Population is in thousands ('000).
-  // ============================================================
 
   Future<Map<String, int>>
   _fetchPopulation2023({
     required bool forceRefresh,
   }) async {
-    // ==========================================================
-    // MEMORY CACHE
-    // ==========================================================
 
     if (!forceRefresh &&
         _memoryPopulation2023 != null &&
@@ -1276,9 +1059,6 @@ class StateRiskService {
       return _memoryPopulation2023!;
     }
 
-    // ==========================================================
-    // DOWNLOAD OFFICIAL DOSM CSV
-    // ==========================================================
 
     final response =
     await http
@@ -1316,11 +1096,6 @@ class StateRiskService {
       );
     }
 
-    // ==========================================================
-    // DETECT HEADER
-    //
-    // Do not rely on a fixed column order.
-    // ==========================================================
 
     final header =
     _splitCsvLine(
@@ -1383,9 +1158,6 @@ class StateRiskService {
     final result =
     <String, int>{};
 
-    // ==========================================================
-    // READ ROWS
-    // ==========================================================
 
     for (int i = 1;
     i < lines.length;
@@ -1421,9 +1193,6 @@ class StateRiskService {
         continue;
       }
 
-      // ========================================================
-      // DATE
-      // ========================================================
 
       final date =
       columns[dateIndex]
@@ -1433,13 +1202,6 @@ class StateRiskService {
         continue;
       }
 
-      // ========================================================
-      // FILTER TOTAL POPULATION
-      //
-      // sex       = both
-      // age       = overall
-      // ethnicity = overall
-      // ========================================================
 
       final sex =
       columns[sexIndex]
@@ -1462,9 +1224,6 @@ class StateRiskService {
         continue;
       }
 
-      // ========================================================
-      // STATE
-      // ========================================================
 
       final state =
       _normalizeStateName(
@@ -1475,17 +1234,6 @@ class StateRiskService {
         continue;
       }
 
-      // ========================================================
-      // POPULATION
-      //
-      // DOSM value is thousands:
-      //
-      // 2074.1
-      //
-      // =
-      //
-      // 2,074,100 people
-      // ========================================================
 
       final populationThousands =
       double.tryParse(
@@ -1508,9 +1256,6 @@ class StateRiskService {
           people;
     }
 
-    // ==========================================================
-    // DEBUG
-    // ==========================================================
 
     debugPrint(
       '============================================',
@@ -1535,9 +1280,6 @@ class StateRiskService {
       '============================================',
     );
 
-    // ==========================================================
-    // MALAYSIA = 16 STATES / FEDERAL TERRITORIES
-    // ==========================================================
 
     if (result.length < 16) {
       throw Exception(
@@ -1553,17 +1295,11 @@ class StateRiskService {
     return result;
   }
 
-  // ============================================================
-  // POPULATION FOR PDRM CRIME GROUP
-  // ============================================================
 
   int _populationForCrimeGroup2023(
       String state,
       Map<String, int> population2023,
       ) {
-    // ==========================================================
-    // KL crime includes Putrajaya
-    // ==========================================================
 
     if (state ==
         'W.P. Kuala Lumpur') {
@@ -1575,9 +1311,6 @@ class StateRiskService {
               0);
     }
 
-    // ==========================================================
-    // Sabah crime includes Labuan
-    // ==========================================================
 
     if (state == 'Sabah') {
       return (population2023[
@@ -1591,9 +1324,6 @@ class StateRiskService {
     return population2023[state] ?? 0;
   }
 
-  // ============================================================
-  // GROUP INFORMATION
-  // ============================================================
 
   String? _groupedWith(
       String state,
@@ -1610,9 +1340,6 @@ class StateRiskService {
     return null;
   }
 
-  // ============================================================
-  // NORMALIZE STATE NAMES
-  // ============================================================
 
   String _normalizeStateName(
       String value,
@@ -1664,11 +1391,6 @@ class StateRiskService {
     }
   }
 
-  // ============================================================
-  // SIMPLE SAFE CSV PARSER
-  //
-  // Handles commas inside quoted text too.
-  // ============================================================
 
   List<String> _splitCsvLine(
       String line,
@@ -1689,11 +1411,6 @@ class StateRiskService {
       line[i];
 
       if (char == '"') {
-        // Double quote inside quoted field:
-        //
-        // ""
-        //
-        // represents a literal quote.
         if (insideQuotes &&
             i + 1 < line.length &&
             line[i + 1] == '"') {
@@ -1739,9 +1456,6 @@ class StateRiskService {
     return result;
   }
 
-  // ============================================================
-  // SAVE SQLITE
-  // ============================================================
 
   Future<void> _saveStateCache(
       List<StateRiskData> data,
@@ -1770,9 +1484,6 @@ class StateRiskService {
     );
   }
 
-  // ============================================================
-  // READ SQLITE
-  // ============================================================
 
   Future<List<StateRiskData>>
   _readStateCache() async {

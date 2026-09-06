@@ -22,9 +22,6 @@ class IdentityVerificationService {
 
   final SupabaseClient supabase = Supabase.instance.client;
 
-  // ============================================================
-  // OCR
-  // ============================================================
 
   Future<IdentityScanResult> scanIdentityCard(String imagePath) async {
     final inputImage = InputImage.fromFilePath(imagePath);
@@ -58,17 +55,6 @@ class IdentityVerificationService {
     }
   }
 
-  // ============================================================
-  // IC EXTRACTION
-  //
-  // Supports:
-  //
-  // 001231-14-1234
-  //
-  // or
-  //
-  // 001231141234
-  // ============================================================
 
   String? _extractMalaysianIc(String text) {
     final formatted = RegExp(r'\b\d{6}[-\s]?\d{2}[-\s]?\d{4}\b');
@@ -96,14 +82,6 @@ class IdentityVerificationService {
         '${digits.substring(8, 12)}';
   }
 
-  // ============================================================
-  // SIMPLE PROTOTYPE NAME EXTRACTION
-  //
-  // OCR is not guaranteed to identify the name perfectly.
-  //
-  // Therefore the UI allows the user to edit the detected
-  // value before saving.
-  // ============================================================
 
   String? _extractName(String text, String? icNumber) {
     final lines = text
@@ -156,18 +134,6 @@ class IdentityVerificationService {
     return null;
   }
 
-  // ============================================================
-  // SAVE VERIFIED IDENTITY
-  //
-  // No IC photo.
-  // No selfie photo.
-  //
-  // Only:
-  // - user_id
-  // - full_name
-  // - ic_number
-  // - verified status
-  // ============================================================
 
   Future<void> saveVerifiedIdentity({
     required String fullName,
@@ -193,9 +159,6 @@ class IdentityVerificationService {
 
     final now = DateTime.now().toUtc().toIso8601String();
 
-    // ==========================================================
-    // VERIFICATION TABLE
-    // ==========================================================
 
     await supabase.from('identity_verifications').upsert({
       'user_id': user.id,
@@ -211,9 +174,6 @@ class IdentityVerificationService {
       'updated_at': now,
     }, onConflict: 'user_id');
 
-    // ==========================================================
-    // PROFILE
-    // ==========================================================
 
     await supabase
         .from('profiles')
@@ -227,9 +187,6 @@ class IdentityVerificationService {
         .eq('id', user.id);
   }
 
-  // ============================================================
-  // GET STATUS
-  // ============================================================
 
   Future<bool> isIdentityVerified() async {
     final user = supabase.auth.currentUser;
@@ -247,9 +204,6 @@ class IdentityVerificationService {
     return profile?['identity_verified'] == true;
   }
 
-  // ============================================================
-  // GET SAVED INFO
-  // ============================================================
 
   Future<Map<String, dynamic>?> getVerification() async {
     final user = supabase.auth.currentUser;
@@ -265,9 +219,6 @@ class IdentityVerificationService {
         .maybeSingle();
   }
 
-  // ============================================================
-  // NORMALIZE IC
-  // ============================================================
 
   String _normalizeIc(String value) {
     final digits = value.replaceAll(RegExp(r'[^0-9]'), '');

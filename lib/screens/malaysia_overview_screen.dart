@@ -3,17 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/state_risk_service.dart';
 import '../widgets/cloud_malaysia_risk_map.dart';
 
-// ============================================================
-// MALAYSIA OVERVIEW SCREEN
-//
-// UI POLISH ONLY
-//
-// DATA / CALCULATION REMAINS INSIDE:
-// StateRiskService
-//
-// MAP REMAINS INSIDE:
-// CloudMalaysiaRiskMap
-// ============================================================
+
 
 class MalaysiaOverviewScreen extends StatefulWidget {
   const MalaysiaOverviewScreen({super.key});
@@ -23,18 +13,12 @@ class MalaysiaOverviewScreen extends StatefulWidget {
 }
 
 class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
-  // ============================================================
-  // STATUS
-  // ============================================================
 
   bool _loading = true;
   bool _districtLoading = false;
 
   String? _error;
 
-  // ============================================================
-  // DATA
-  // ============================================================
 
   List<StateRiskData> _states = [];
 
@@ -42,9 +26,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
   String? _selectedState;
 
-  // ============================================================
-  // INIT
-  // ============================================================
 
   @override
   void initState() {
@@ -53,9 +34,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     _loadData();
   }
 
-  // ============================================================
-  // LOAD STATE DATA
-  // ============================================================
 
   Future<void> _loadData({bool refresh = false}) async {
     setState(() {
@@ -91,9 +69,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     }
   }
 
-  // ============================================================
-  // LOAD POLICE DISTRICT DATA
-  // ============================================================
 
   Future<void> _loadDistricts(String state, {bool refresh = false}) async {
     if (!mounted) return;
@@ -134,9 +109,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     }
   }
 
-  // ============================================================
-  // SELECT STATE
-  // ============================================================
 
   Future<void> _selectState(String? state) async {
     if (_selectedState == state) {
@@ -160,9 +132,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     await _loadDistricts(state);
   }
 
-  // ============================================================
-  // SELECTED DATA
-  // ============================================================
 
   StateRiskData? get _selectedData {
     if (_selectedState == null) {
@@ -178,9 +147,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return null;
   }
 
-  // ============================================================
-  // NATIONAL RANKING
-  // ============================================================
 
   List<StateRiskData> get _ranking {
     final values = [..._states];
@@ -190,20 +156,11 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return values;
   }
 
-  // ============================================================
-  // DIRECT STATES
-  //
-  // Excludes inherited Putrajaya / Labuan values from
-  // national summary calculations.
-  // ============================================================
 
   List<StateRiskData> get _directStates {
     return _states.where((state) => !state.isInherited).toList();
   }
 
-  // ============================================================
-  // HIGHEST RISK
-  // ============================================================
 
   StateRiskData? get _highestRisk {
     if (_directStates.isEmpty) {
@@ -217,9 +174,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return values.first;
   }
 
-  // ============================================================
-  // LOWEST RISK
-  // ============================================================
 
   StateRiskData? get _lowestRisk {
     if (_directStates.isEmpty) {
@@ -233,9 +187,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return values.first;
   }
 
-  // ============================================================
-  // AVERAGE SCORE
-  // ============================================================
 
   double get _averageRisk {
     if (_directStates.isEmpty) {
@@ -250,9 +201,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return total / _directStates.length;
   }
 
-  // ============================================================
-  // MAIN
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -264,14 +212,8 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // BODY
-  // ============================================================
 
   Widget _buildBody() {
-    // ==========================================================
-    // LOADING
-    // ==========================================================
 
     if (_loading) {
       return ListView(
@@ -302,46 +244,28 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
       );
     }
 
-    // ==========================================================
-    // ERROR
-    // ==========================================================
 
     if (_error != null) {
       return _buildErrorState();
     }
 
-    // ==========================================================
-    // NORMAL
-    // ==========================================================
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 32),
       children: [
-        // ======================================================
-        // PAGE INTRO
-        // ======================================================
         _buildPageIntro(),
 
         const SizedBox(height: 16),
 
-        // ======================================================
-        // STATE SELECTOR
-        // ======================================================
         _buildStateSelector(),
 
         const SizedBox(height: 14),
 
-        // ======================================================
-        // MAP
-        // ======================================================
         _buildMapCard(),
 
         const SizedBox(height: 24),
 
-        // ======================================================
-        // DYNAMIC CONTENT
-        // ======================================================
         if (_selectedData == null)
           _buildMalaysiaOverview()
         else
@@ -350,9 +274,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // PAGE INTRO
-  // ============================================================
 
   Widget _buildPageIntro() {
     final scheme = Theme.of(context).colorScheme;
@@ -414,9 +335,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // STATE SELECTOR
-  // ============================================================
 
   Widget _buildStateSelector() {
     final scheme = Theme.of(context).colorScheme;
@@ -484,9 +402,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // MAP CARD
-  // ============================================================
 
   Widget _buildMapCard() {
     final scheme = Theme.of(context).colorScheme;
@@ -501,9 +416,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ====================================================
-          // MAP HEADER
-          // ====================================================
           Row(
             children: [
               Container(
@@ -555,9 +467,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
           const SizedBox(height: 13),
 
-          // ====================================================
-          // REAL CLOUD GEOJSON MAP
-          // ====================================================
           CloudMalaysiaRiskMap(
             stateData: _states,
             selectedState: _selectedState,
@@ -568,9 +477,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
           const SizedBox(height: 14),
 
-          // ====================================================
-          // LEGEND
-          // ====================================================
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -598,17 +504,11 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // NATIONAL OVERVIEW
-  // ============================================================
 
   Widget _buildMalaysiaOverview() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ======================================================
-        // SECTION HEADER
-        // ======================================================
         _sectionHeader(
           icon: Icons.analytics_outlined,
           title: 'National Snapshot',
@@ -618,9 +518,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
         const SizedBox(height: 12),
 
-        // ======================================================
-        // SUMMARY ROW 1
-        // ======================================================
         Row(
           children: [
             Expanded(
@@ -653,9 +550,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
         const SizedBox(height: 11),
 
-        // ======================================================
-        // SUMMARY ROW 2
-        // ======================================================
         Row(
           children: [
             Expanded(
@@ -682,9 +576,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
         const SizedBox(height: 26),
 
-        // ======================================================
-        // RANKING HEADER
-        // ======================================================
         _sectionHeader(
           icon: Icons.leaderboard_outlined,
           title: 'State Risk Ranking',
@@ -703,9 +594,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // STATE RANKING
-  // ============================================================
 
   Widget _buildStateRanking() {
     final scheme = Theme.of(context).colorScheme;
@@ -729,16 +617,10 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
                   ),
                   child: Row(
                     children: [
-                      // =========================================
-                      // RANK
-                      // =========================================
                       _rankingNumber(index),
 
                       const SizedBox(width: 11),
 
-                      // =========================================
-                      // STATE DETAILS
-                      // =========================================
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,9 +667,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
                       const SizedBox(width: 12),
 
-                      // =========================================
-                      // LEVEL + SCORE
-                      // =========================================
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -822,9 +701,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // SELECTED STATE
-  // ============================================================
 
   Widget _buildSelectedState(StateRiskData data) {
     final riskColor = _riskColor(data.riskLevel);
@@ -832,16 +708,10 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ======================================================
-        // STATE HERO
-        // ======================================================
         _buildStateHero(data, riskColor),
 
         const SizedBox(height: 14),
 
-        // ======================================================
-        // PRIMARY METRICS
-        // ======================================================
         Row(
           children: [
             Expanded(
@@ -868,9 +738,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
         const SizedBox(height: 11),
 
-        // ======================================================
-        // CRIME CATEGORY
-        // ======================================================
         Row(
           children: [
             Expanded(
@@ -899,14 +766,8 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
         const SizedBox(height: 11),
 
-        // ======================================================
-        // POPULATION
-        // ======================================================
         _buildPopulationCard(data),
 
-        // ======================================================
-        // GROUPING NOTE
-        // ======================================================
         if (data.groupedWith != null) ...[
           const SizedBox(height: 12),
 
@@ -915,9 +776,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
         const SizedBox(height: 26),
 
-        // ======================================================
-        // DISTRICT RANKING
-        // ======================================================
         _sectionHeader(
           icon: Icons.location_city_outlined,
           title: 'Police District Ranking',
@@ -936,9 +794,6 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // STATE HERO
-  // ============================================================
 
   Widget _buildStateHero(StateRiskData data, Color riskColor) {
     final scheme = Theme.of(context).colorScheme;
@@ -953,9 +808,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ====================================================
-          // TITLE
-          // ====================================================
+
           Row(
             children: [
               Container(
@@ -1000,9 +853,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
           const SizedBox(height: 20),
 
-          // ====================================================
-          // SCORE
-          // ====================================================
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -1088,9 +939,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // POPULATION CARD
-  // ============================================================
+
 
   Widget _buildPopulationCard(StateRiskData data) {
     final scheme = Theme.of(context).colorScheme;
@@ -1137,16 +986,12 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // DISTRICT RANKING
-  // ============================================================
+
 
   Widget _buildDistrictRanking() {
     final scheme = Theme.of(context).colorScheme;
 
-    // ==========================================================
-    // LOADING
-    // ==========================================================
+
 
     if (_districtLoading) {
       return Container(
@@ -1172,9 +1017,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
       );
     }
 
-    // ==========================================================
-    // EMPTY
-    // ==========================================================
+
 
     if (_districts.isEmpty) {
       return Container(
@@ -1216,16 +1059,12 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  // =============================================
-                  // RANK
-                  // =============================================
+
                   _rankingNumber(index),
 
                   const SizedBox(width: 11),
 
-                  // =============================================
-                  // NAME + BAR
-                  // =============================================
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1258,9 +1097,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
 
                   const SizedBox(width: 14),
 
-                  // =============================================
-                  // CASES
-                  // =============================================
+
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1288,9 +1125,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // GROUPING NOTE
-  // ============================================================
+
 
   Widget _buildGroupingCard(StateRiskData data) {
     return Container(
@@ -1320,9 +1155,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // METHODOLOGY NOTE
-  // ============================================================
+
 
   Widget _buildMethodologyNote({bool stateDetail = false}) {
     final scheme = Theme.of(context).colorScheme;
@@ -1378,9 +1211,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // ERROR STATE
-  // ============================================================
+
 
   Widget _buildErrorState() {
     final scheme = Theme.of(context).colorScheme;
@@ -1445,9 +1276,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // SECTION HEADER
-  // ============================================================
+
 
   Widget _sectionHeader({
     required IconData icon,
@@ -1493,9 +1322,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // SUMMARY CARD
-  // ============================================================
+
 
   Widget _summaryCard({
     required IconData icon,
@@ -1566,9 +1393,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // METRIC CARD
-  // ============================================================
+
 
   Widget _metricCard({
     required IconData icon,
@@ -1626,9 +1451,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // RANK NUMBER
-  // ============================================================
+
 
   Widget _rankingNumber(int index) {
     Color background;
@@ -1668,9 +1491,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // RISK BADGE
-  // ============================================================
+
 
   Widget _riskBadge(String level, {bool compact = false}) {
     final color = _riskColor(level);
@@ -1709,9 +1530,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // CARD DECORATION
-  // ============================================================
+
 
   BoxDecoration _cardDecoration() {
     final scheme = Theme.of(context).colorScheme;
@@ -1723,9 +1542,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     );
   }
 
-  // ============================================================
-  // RISK COLOUR
-  // ============================================================
+
 
   Color _riskColor(String level) {
     switch (level.toUpperCase()) {
@@ -1747,9 +1564,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     }
   }
 
-  // ============================================================
-  // RISK DESCRIPTION
-  // ============================================================
+
 
   String _riskDescription(String level) {
     switch (level.toUpperCase()) {
@@ -1769,9 +1584,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     }
   }
 
-  // ============================================================
-  // SHORT STATE NAME
-  // ============================================================
+
 
   String _shortStateName(String state) {
     switch (state) {
@@ -1789,9 +1602,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     }
   }
 
-  // ============================================================
-  // FORMAT POPULATION
-  // ============================================================
+
 
   String _formatPopulation(int value) {
     if (value >= 1000000) {
@@ -1805,9 +1616,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
     return '$value';
   }
 
-  // ============================================================
-  // FORMAT NUMBER
-  // ============================================================
+
 
   String _formatNumber(int value) {
     return value.toString().replaceAllMapped(
@@ -1817,9 +1626,7 @@ class _MalaysiaOverviewScreenState extends State<MalaysiaOverviewScreen> {
   }
 }
 
-// ============================================================
-// LEGEND ITEM
-// ============================================================
+
 
 class _LegendItem extends StatelessWidget {
   final Color color;

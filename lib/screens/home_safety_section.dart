@@ -1,9 +1,6 @@
 part of 'home_screen.dart';
 
 extension _HomeSafetySection on _HomeScreenState {
-  // ============================================================
-  // DRAGGABLE SAFETY SHEET
-  // ============================================================
 
   Widget _buildSafetySheet() {
     final scheme = Theme.of(context).colorScheme;
@@ -37,9 +34,7 @@ extension _HomeSafetySection on _HomeScreenState {
             controller: scrollController,
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
             children: [
-              // =================================================
-              // HANDLE
-              // =================================================
+
 
               Center(
                 child: Container(
@@ -54,21 +49,15 @@ extension _HomeSafetySection on _HomeScreenState {
 
               const SizedBox(height: 14),
 
-              // =================================================
-              // LOCATION
-              // =================================================
+
               _buildSheetLocationHeader(),
 
               const SizedBox(height: 15),
 
-              // =================================================
-              // RISK
-              // =================================================
+
               _buildCompactRiskCard(),
 
-              // =================================================
-              // SETUP STATUS
-              // =================================================
+
               if (!_setupLoading && !_setupComplete) ...[
                 const SizedBox(height: 12),
 
@@ -77,16 +66,12 @@ extension _HomeSafetySection on _HomeScreenState {
 
               const SizedBox(height: 12),
 
-              // =================================================
-              // NEARBY ALERTS
-              // =================================================
+
               _buildNearbyAlertButton(),
 
               const SizedBox(height: 20),
 
-              // =================================================
-              // EXPANDED INFORMATION
-              // =================================================
+
               _sheetSectionTitle('Safety Details'),
 
               const SizedBox(height: 10),
@@ -113,9 +98,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // SHEET LOCATION HEADER
-  // ============================================================
+
 
   Widget _buildSheetLocationHeader() {
     return Row(
@@ -178,9 +161,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // COMPACT RISK CARD
-  // ============================================================
+
 
   Widget _buildCompactRiskCard() {
     final riskColor = _riskColor();
@@ -262,11 +243,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // SETUP STATUS CARD
-  //
-  // Shows EXACTLY which requirement is incomplete.
-  // ============================================================
+
 
   Widget _buildSetupStatusCard() {
     return Container(
@@ -307,9 +284,7 @@ extension _HomeSafetySection on _HomeScreenState {
 
           const SizedBox(height: 12),
 
-          // ====================================================
-          // PHONE VERIFICATION
-          // ====================================================
+
           _setupStatusRow(
             icon: Icons.phone_android_rounded,
 
@@ -328,9 +303,7 @@ extension _HomeSafetySection on _HomeScreenState {
 
           const SizedBox(height: 9),
 
-          // ====================================================
-          // DEVICE BINDING
-          // ====================================================
+
           _setupStatusRow(
             icon: Icons.devices_rounded,
 
@@ -347,9 +320,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // SETUP STATUS ROW
-  // ============================================================
+
 
   Widget _setupStatusRow({
     required IconData icon,
@@ -401,9 +372,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // NEARBY ALERT BUTTON
-  // ============================================================
+
 
   Widget _buildNearbyAlertButton() {
     final hasAlerts = _nearbyAlerts.isNotEmpty;
@@ -496,9 +465,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // DETAILED RISK STATS
-  // ============================================================
+
 
   Widget _buildDetailedRiskStats() {
     return Row(
@@ -536,9 +503,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // DETAIL STAT
-  // ============================================================
+
 
   Widget _detailStat({
     required IconData icon,
@@ -573,9 +538,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // RISK DESCRIPTION
-  // ============================================================
+
 
   Widget _buildRiskDescriptionCard() {
     final color = _riskColor();
@@ -606,9 +569,7 @@ extension _HomeSafetySection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // SHEET SECTION TITLE
-  // ============================================================
+
 
   Widget _sheetSectionTitle(String title) {
     return Text(

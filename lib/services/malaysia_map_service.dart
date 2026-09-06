@@ -4,9 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
-// ============================================================
-// GEO POINT
-// ============================================================
 
 class MalaysiaGeoPoint {
   final double longitude;
@@ -18,9 +15,6 @@ class MalaysiaGeoPoint {
   });
 }
 
-// ============================================================
-// GEO RING
-// ============================================================
 
 class MalaysiaGeoRing {
   final List<MalaysiaGeoPoint> points;
@@ -30,10 +24,6 @@ class MalaysiaGeoRing {
   });
 }
 
-// ============================================================
-// GEO POLYGON
-// ============================================================
-
 class MalaysiaGeoPolygon {
   final List<MalaysiaGeoRing> rings;
 
@@ -42,9 +32,6 @@ class MalaysiaGeoPolygon {
   });
 }
 
-// ============================================================
-// GEO BOUNDS
-// ============================================================
 
 class MalaysiaGeoBounds {
   final double minLongitude;
@@ -72,9 +59,6 @@ class MalaysiaGeoBounds {
       (minLatitude + maxLatitude) / 2;
 }
 
-// ============================================================
-// STATE BOUNDARY
-// ============================================================
 
 class MalaysiaStateBoundary {
   final String stateCode;
@@ -98,9 +82,6 @@ class MalaysiaStateBoundary {
   });
 }
 
-// ============================================================
-// FULL MALAYSIA BOUNDARY
-// ============================================================
 
 class MalaysiaMapBoundary {
   final List<MalaysiaStateBoundary> states;
@@ -113,9 +94,6 @@ class MalaysiaMapBoundary {
   });
 }
 
-// ============================================================
-// SERVICE
-// ============================================================
 
 class MalaysiaMapService {
   MalaysiaMapService._();
@@ -123,13 +101,6 @@ class MalaysiaMapService {
   static final MalaysiaMapService instance =
   MalaysiaMapService._();
 
-  // ============================================================
-  // CLOUD SOURCE
-  //
-  // Later if you want to put this in Supabase Storage,
-  // only change this URL.
-  // Everything else can remain unchanged.
-  // ============================================================
 
   static const String geoJsonUrl =
       'https://raw.githubusercontent.com/'
@@ -144,13 +115,6 @@ class MalaysiaMapService {
 
   MalaysiaMapBoundary? _memoryCache;
 
-  // ============================================================
-  // STATE CODE MAPPING
-  //
-  // GeoJSON state code
-  // ->
-  // SafeZone StateRiskService state name
-  // ============================================================
 
   static const Map<String, String>
   _stateCodeToRiskName = {
@@ -174,9 +138,6 @@ class MalaysiaMapService {
     'PJY': 'W.P. Putrajaya',
   };
 
-  // ============================================================
-  // DATABASE
-  // ============================================================
 
   Future<Database> _getDatabase() async {
     if (_database != null) {
@@ -213,18 +174,6 @@ class MalaysiaMapService {
     return _database!;
   }
 
-  // ============================================================
-  // PUBLIC LOAD
-  //
-  // Priority:
-  //
-  // 1. Memory
-  // 2. SQLite
-  // 3. Cloud
-  //
-  // If refresh = true:
-  // Cloud first, SQLite fallback.
-  // ============================================================
 
   Future<MalaysiaMapBoundary> load({
     bool refresh = false,
@@ -240,12 +189,8 @@ class MalaysiaMapService {
       cachedRaw =
       await _readCachedGeoJson();
     } catch (e) {
-      // Cache error should not stop cloud loading.
     }
 
-    // ==========================================================
-    // USE LOCAL SQLITE FIRST
-    // ==========================================================
 
     if (!refresh &&
         cachedRaw != null &&
@@ -261,14 +206,9 @@ class MalaysiaMapService {
 
         return parsed;
       } catch (e) {
-        // Invalid old cache.
-        // Continue to cloud.
       }
     }
 
-    // ==========================================================
-    // CLOUD
-    // ==========================================================
 
     try {
       final response =
@@ -293,8 +233,6 @@ class MalaysiaMapService {
       final raw =
           response.body;
 
-      // Parse BEFORE saving.
-      // Prevent corrupted network response from entering cache.
       final parsed =
       _parseGeoJson(
         raw,
@@ -309,9 +247,6 @@ class MalaysiaMapService {
 
       return parsed;
     } catch (e) {
-      // ========================================================
-      // CLOUD FAILED -> SQLITE FALLBACK
-      // ========================================================
 
       if (cachedRaw != null &&
           cachedRaw.isNotEmpty) {
@@ -330,9 +265,6 @@ class MalaysiaMapService {
     }
   }
 
-  // ============================================================
-  // SQLITE SAVE
-  // ============================================================
 
   Future<void> _saveGeoJson(
       String raw,
@@ -356,9 +288,6 @@ class MalaysiaMapService {
     );
   }
 
-  // ============================================================
-  // SQLITE READ
-  // ============================================================
 
   Future<String?> _readCachedGeoJson() async {
     final db =
@@ -387,9 +316,6 @@ class MalaysiaMapService {
         ?.toString();
   }
 
-  // ============================================================
-  // PARSE GEOJSON
-  // ============================================================
 
   MalaysiaMapBoundary _parseGeoJson(
       String raw,
@@ -434,9 +360,6 @@ class MalaysiaMapService {
     double malaysiaMaxLat =
     -double.infinity;
 
-    // ==========================================================
-    // FEATURES
-    // ==========================================================
 
     for (final rawFeature
     in featureRaw) {
@@ -573,13 +496,6 @@ class MalaysiaMapService {
     );
   }
 
-  // ============================================================
-  // PARSE GEOMETRY
-  //
-  // Supports:
-  // Polygon
-  // MultiPolygon
-  // ============================================================
 
   List<MalaysiaGeoPolygon> _parseGeometry(
       Map<String, dynamic> geometry,
@@ -638,9 +554,6 @@ class MalaysiaMapService {
     return [];
   }
 
-  // ============================================================
-  // PARSE ONE POLYGON
-  // ============================================================
 
   MalaysiaGeoPolygon? _parsePolygon(
       List<dynamic> rawPolygon,
@@ -706,9 +619,6 @@ class MalaysiaMapService {
     );
   }
 
-  // ============================================================
-  // BOUNDS
-  // ============================================================
 
   MalaysiaGeoBounds _calculateBounds(
       List<MalaysiaGeoPolygon> polygons,

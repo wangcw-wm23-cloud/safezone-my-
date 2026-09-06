@@ -1,16 +1,10 @@
 part of 'home_screen.dart';
 
 extension _HomeMapView on _HomeScreenState {
-  // ============================================================
-  // HOME MAP
-  // ============================================================
 
   Widget _buildMapHome() {
     return Stack(
       children: [
-        // ======================================================
-        // REAL MAP
-        // ======================================================
 
         Positioned.fill(
           child: FlutterMap(
@@ -29,9 +23,6 @@ extension _HomeMapView on _HomeScreenState {
             ),
 
             children: [
-              // =================================================
-              // OPENSTREETMAP
-              // =================================================
 
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -39,17 +30,12 @@ extension _HomeMapView on _HomeScreenState {
                 userAgentPackageName: 'com.example.safezone_my',
               ),
 
-              // =================================================
-              // MARKERS
-              // =================================================
               MarkerLayer(markers: _buildMapMarkers()),
             ],
           ),
         ),
 
-        // ======================================================
-        // DARK MAP TOP FADE
-        // ======================================================
+
         Positioned(
           left: 0,
           right: 0,
@@ -71,23 +57,17 @@ extension _HomeMapView on _HomeScreenState {
           ),
         ),
 
-        // ======================================================
-        // HEADER
-        // ======================================================
+
         _buildFloatingHeader(),
 
-        // ======================================================
-        // MAP CONTROLS
-        // ======================================================
+
         Positioned(
           right: 16,
           top: MediaQuery.of(context).padding.top + 88,
           child: _buildMapControls(),
         ),
 
-        // ======================================================
-        // OSM ATTRIBUTION
-        // ======================================================
+
         Positioned(
           left: 12,
           top: MediaQuery.of(context).padding.top + 98,
@@ -104,17 +84,13 @@ extension _HomeMapView on _HomeScreenState {
           ),
         ),
 
-        // ======================================================
-        // DRAGGABLE SAFETY PANEL
-        // ======================================================
+
         _HomeSafetySection(this)._buildSafetySheet(),
       ],
     );
   }
 
-  // ============================================================
-  // FLOATING HEADER
-  // ============================================================
+
 
   Widget _buildFloatingHeader() {
     final scheme = Theme.of(context).colorScheme;
@@ -179,9 +155,7 @@ extension _HomeMapView on _HomeScreenState {
               ),
             ),
 
-            // ==================================================
-            // REFRESH
-            // ==================================================
+
             IconButton(
               tooltip: 'Refresh location',
               onPressed: _locationLoading ? null : _refreshHome,
@@ -194,9 +168,7 @@ extension _HomeMapView on _HomeScreenState {
                   : const Icon(Icons.refresh_rounded),
             ),
 
-            // ==================================================
-            // NOTIFICATION
-            // ==================================================
+
             IconButton(
               tooltip: 'Nearby alerts',
               onPressed: _HomeNearbySection(this)._showNearbyAlerts,
@@ -214,18 +186,14 @@ extension _HomeMapView on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // MAP CONTROLS
-  // ============================================================
+
 
   Widget _buildMapControls() {
     final scheme = Theme.of(context).colorScheme;
 
     return Column(
       children: [
-        // ======================================================
-        // RECENTER
-        // ======================================================
+
 
         _mapControlButton(
           icon: Icons.my_location_rounded,
@@ -235,9 +203,7 @@ extension _HomeMapView on _HomeScreenState {
 
         const SizedBox(height: 10),
 
-        // ======================================================
-        // ALERTS
-        // ======================================================
+
         Material(
           color: scheme.surface.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(15),
@@ -266,9 +232,7 @@ extension _HomeMapView on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // MAP CONTROL BUTTON
-  // ============================================================
+
 
   Widget _mapControlButton({
     required IconData icon,
@@ -299,16 +263,12 @@ extension _HomeMapView on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // MAP MARKERS
-  // ============================================================
+
 
   List<Marker> _buildMapMarkers() {
     final markers = <Marker>[];
 
-    // ==========================================================
-    // USER MARKER
-    // ==========================================================
+
 
     if (_currentLatitude != null && _currentLongitude != null) {
       markers.add(
@@ -321,9 +281,7 @@ extension _HomeMapView on _HomeScreenState {
       );
     }
 
-    // ==========================================================
-    // NEARBY ALERT MARKERS
-    // ==========================================================
+
 
     for (final alert in _nearbyAlerts) {
       markers.add(
@@ -342,9 +300,7 @@ extension _HomeMapView on _HomeScreenState {
     return markers;
   }
 
-  // ============================================================
-  // USER MARKER
-  // ============================================================
+
 
   Widget _buildUserMarker() {
     return Container(
@@ -377,9 +333,7 @@ extension _HomeMapView on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // ALERT MARKER
-  // ============================================================
+
 
   Widget _buildAlertMarker(_NearbyAlert alert) {
     final color = _alertColor(alert.category);

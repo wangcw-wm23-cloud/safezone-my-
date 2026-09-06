@@ -44,13 +44,9 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     _startVerificationPolling();
     _startResendCountdown();
 
-    // 一进入页面马上检查一次
     Future.microtask(_checkVerificationFromBackend);
   }
 
-  // =========================================================
-  // SUPABASE AUTH LISTENER
-  // =========================================================
 
   void _listenToAuthChanges() {
     _authSubscription =
@@ -75,9 +71,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
         );
   }
 
-  // =========================================================
-  // AUTOMATIC BACKEND POLLING
-  // =========================================================
 
   void _startVerificationPolling() {
     if (widget.userId == null) {
@@ -139,9 +132,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     }
   }
 
-  // =========================================================
-  // WHEN USER RETURNS FROM EMAIL / BROWSER
-  // =========================================================
 
   @override
   void didChangeAppLifecycleState(
@@ -166,9 +156,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     }
   }
 
-  // =========================================================
-  // VERIFICATION SUCCESS
-  // =========================================================
 
   Future<void> _completeVerification() async {
     if (_verificationHandled) return;
@@ -186,14 +173,10 @@ class _VerifiedScreenState extends State<VerifiedScreen>
       'VERIFY: verification completed successfully',
     );
 
-    // 让用户看到成功画面
     await Future.delayed(
       const Duration(seconds: 2),
     );
 
-    // Email verification deep link 有时候会建立 session。
-    // SafeZone 流程是 Verify -> Login，
-    // 所以这里先 logout。
     if (supabase.auth.currentSession != null) {
       try {
         await supabase.auth.signOut();
@@ -215,9 +198,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     );
   }
 
-  // =========================================================
-  // RESEND COUNTDOWN
-  // =========================================================
 
   void _startResendCountdown() {
     _resendTimer?.cancel();
@@ -249,9 +229,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     );
   }
 
-  // =========================================================
-  // RESEND VERIFICATION EMAIL
-  // =========================================================
 
   Future<void> _resendVerificationEmail() async {
     if (_isResending ||
@@ -312,9 +289,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     }
   }
 
-  // =========================================================
-  // MANUAL CHECK BUTTON
-  // =========================================================
 
   Future<void> _checkNow() async {
     if (_isChecking) return;
@@ -333,9 +307,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     }
   }
 
-  // =========================================================
-  // DISPOSE
-  // =========================================================
 
   @override
   void dispose() {
@@ -348,9 +319,6 @@ class _VerifiedScreenState extends State<VerifiedScreen>
     super.dispose();
   }
 
-  // =========================================================
-  // UI
-  // =========================================================
 
   @override
   Widget build(BuildContext context) {

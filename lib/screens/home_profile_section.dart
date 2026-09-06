@@ -1,9 +1,7 @@
 part of 'home_screen.dart';
 
 extension _HomeProfileSection on _HomeScreenState {
-  // ============================================================
-  // PROFILE PAGE
-  // ============================================================
+
 
   Widget _buildProfilePage() {
     return SafeArea(
@@ -41,9 +39,7 @@ extension _HomeProfileSection on _HomeScreenState {
 
           const SizedBox(height: 16),
 
-          // ====================================================
-          // SAFETY SETUP SUMMARY
-          // ====================================================
+
           Container(
             padding: const EdgeInsets.all(14),
             decoration: _cardDecoration(),
@@ -136,9 +132,7 @@ extension _HomeProfileSection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // PROFILE SETUP STATUS
-  // ============================================================
+
 
   Widget _profileStatus({required String title, required bool complete}) {
     final color = complete ? Colors.green : Colors.orange;
@@ -167,9 +161,7 @@ extension _HomeProfileSection on _HomeScreenState {
     );
   }
 
-  // ============================================================
-  // PROFILE OPTION
-  // ============================================================
+
 
   Widget _profileOption({
     required IconData icon,
