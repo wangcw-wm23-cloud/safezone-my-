@@ -1,146 +1,113 @@
 import 'package:flutter/material.dart';
 
-import '../services/auth_recovery_handler.dart';
 import '../services/session_manager.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
-import 'reset_password_screen.dart';
 
 class SessionGate extends StatefulWidget {
-  const SessionGate({
-    super.key,
-  });
+  const SessionGate({super.key});
 
   @override
-  State<SessionGate> createState() =>
-      _SessionGateState();
+  State<SessionGate> createState() => _SessionGateState();
 }
 
-class _SessionGateState
-    extends State<SessionGate>
-    with WidgetsBindingObserver {
-  final AuthRecoveryHandler
-  _authRecoveryHandler =
-  AuthRecoveryHandler();
-
+class _SessionGateState extends State<SessionGate> {
   bool _checking = true;
-
   bool _authenticated = false;
+  bool _busy = false;
 
-  bool _validating = false;
-
-  bool _handlingRecovery = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.addObserver(this);
-
-    _authRecoveryHandler.start(
-      onPasswordRecovery: () {
-        if (!mounted) return;
-
-        _handlingRecovery = true;
-
-        WidgetsBinding.instance
-            .addPostFrameCallback(
-              (_) {
-            if (!mounted) return;
-
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                const ResetPasswordScreen(),
-              ),
-                  (route) => false,
-            );
-          },
-        );
-      },
-    );
-
     _checkSession();
   }
 
-  @override
-  void didChangeAppLifecycleState(
-      AppLifecycleState state,
-      ) {
-    if (state ==
-        AppLifecycleState.resumed &&
-        !_handlingRecovery) {
-      _checkSession(
-        showLoading: false,
-      );
-    }
-  }
-
-  Future<void> _checkSession({
-    bool showLoading = true,
-  }) async {
-    if (_validating ||
-        _handlingRecovery) {
+  Future<void> _checkSession() async {
+    if (_busy || !mounted) {
       return;
     }
 
-    _validating = true;
+    _busy = true;
 
-    if (showLoading && mounted) {
-      setState(() {
-        _checking = true;
-      });
-    }
+    setState(() {
+      _checking = true;
+      _error = null;
+    });
 
     try {
       final valid =
-      await SessionManager.instance
-          .validateSession();
+      await SessionManager.instance.validateSession();
 
-      if (!mounted ||
-          _handlingRecovery) {
+      if (!mounted) {
         return;
       }
 
       setState(() {
         _authenticated = valid;
-        _checking = false;
       });
-    } catch (e, stackTrace) {
-      debugPrint(
-        'SESSION GATE ERROR: $e',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('SESSION CHECK ERROR: $error');
+      debugPrint(stackTrace.toString());
 
-      debugPrint(
-        stackTrace.toString(),
-      );
-
-      await SessionManager.instance.logout();
-
-      if (!mounted ||
-          _handlingRecovery) {
-        return;
+      if (mounted) {
+        setState(() {
+          _authenticated = false;
+          _error =
+          'Unable to check your session. '
+              'Check your connection and retry.';
+        });
       }
-
-      setState(() {
-        _authenticated = false;
-        _checking = false;
-      });
     } finally {
-      _validating = false;
+      _busy = false;
+
+      if (mounted) {
+        setState(() {
+          _checking = false;
+        });
+      }
     }
   }
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
     if (_checking) {
       return const Scaffold(
         body: Center(
-          child:
-          CircularProgressIndicator(),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _checkSession,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       );
     }
@@ -150,19 +117,7 @@ class _SessionGateState
     }
 
     return LoginScreen(
-      onLoginSuccess: () async {
-        await _checkSession();
-      },
+      onLoginSuccess: _checkSession,
     );
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance
-        .removeObserver(this);
-
-    _authRecoveryHandler.dispose();
-
-    super.dispose();
   }
 }

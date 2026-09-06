@@ -3,58 +3,78 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'device_binding_service.dart';
+import 'push_notification_service.dart';
 
 class SessionManager {
   SessionManager._();
 
-  static final SessionManager instance =
-  SessionManager._();
+  static final SessionManager instance = SessionManager._();
 
   static const FlutterSecureStorage _storage =
   FlutterSecureStorage();
 
-  static const String _lastActiveKey =
-      'safezone_last_active_at';
+  static const Duration inactivityLimit = Duration(days: 7);
 
-  static const Duration inactivityLimit =
-  Duration(days: 7);
+  final SupabaseClient supabase = Supabase.instance.client;
 
-  final SupabaseClient supabase =
-      Supabase.instance.client;
+  final ValueNotifier<String?> authorizedUserId =
+  ValueNotifier<String?>(null);
 
-  // ============================================================
-  // MARK ACTIVE
-  // ============================================================
+  Future<bool>? _validation;
 
-  Future<void> markActive() async {
-    final now = DateTime.now().toUtc();
+  bool _signingOut = false;
+  bool recovering = false;
 
-    await _storage.write(
-      key: _lastActiveKey,
-      value: now.toIso8601String(),
-    );
+  int _revision = 0;
+
+  String _activityKey(String userId) {
+    return 'safezone_last_active_at_$userId';
   }
 
-  // ============================================================
-  // LAST ACTIVE
-  // ============================================================
+  void clearAccess() {
+    _revision++;
+    authorizedUserId.value = null;
+  }
 
-  Future<DateTime?> getLastActive() async {
-    final value = await _storage.read(
-      key: _lastActiveKey,
+  void enterRecovery() {
+    recovering = true;
+    clearAccess();
+  }
+
+  Future<void> markActive() async {
+    final user = supabase.auth.currentUser;
+    final revision = _revision;
+
+    if (user == null || _signingOut || recovering) {
+      return;
+    }
+
+    await _storage.write(
+      key: _activityKey(user.id),
+      value: DateTime.now().toUtc().toIso8601String(),
     );
 
-    if (value == null ||
-        value.trim().isEmpty) {
+    if (revision == _revision &&
+        !_signingOut &&
+        !recovering &&
+        supabase.auth.currentUser?.id == user.id) {
+      authorizedUserId.value = user.id;
+    }
+  }
+
+  Future<DateTime?> getLastActive() async {
+    final userId = supabase.auth.currentUser?.id;
+
+    if (userId == null) {
       return null;
     }
 
-    return DateTime.tryParse(value);
-  }
+    final value = await _storage.read(
+      key: _activityKey(userId),
+    );
 
-  // ============================================================
-  // INACTIVITY
-  // ============================================================
+    return value == null ? null : DateTime.tryParse(value);
+  }
 
   Future<bool> isInactiveTooLong() async {
     final lastActive = await getLastActive();
@@ -63,95 +83,126 @@ class SessionManager {
       return false;
     }
 
-    final difference =
-    DateTime.now().toUtc().difference(
+    return DateTime.now().toUtc().difference(
       lastActive.toUtc(),
-    );
-
-    return difference > inactivityLimit;
+    ) >=
+        inactivityLimit;
   }
 
-  // ============================================================
-  // VALIDATE SESSION
-  // ============================================================
+  Future<bool> validateSession() {
+    return _validation ??= _validateSession().whenComplete(() {
+      _validation = null;
+    });
+  }
 
-  Future<bool> validateSession() async {
-    Session? session =
-        supabase.auth.currentSession;
+  Future<bool> _validateSession() async {
+    if (_signingOut || recovering) {
+      return false;
+    }
+
+    var session = supabase.auth.currentSession;
 
     if (session == null) {
-      await clearLocalSession();
+      clearAccess();
+      return false;
+    }
 
+    final userId = session.user.id;
+    final revision = _revision;
+
+    if (await isInactiveTooLong()) {
+      await logout();
       return false;
     }
 
     if (session.isExpired) {
       try {
-        final response =
-        await supabase.auth
-            .refreshSession();
-
+        final response = await supabase.auth.refreshSession();
         session = response.session;
+      } on AuthException catch (error) {
+        const invalidSessionCodes = {
+          'refresh_token_not_found',
+          'refresh_token_already_used',
+          'session_not_found',
+          'session_expired',
+        };
 
-        if (session == null) {
+        if (invalidSessionCodes.contains(error.code)) {
           await logout();
-
           return false;
         }
-      } catch (e) {
-        debugPrint(
-          'SESSION REFRESH ERROR: $e',
-        );
 
+        rethrow;
+      }
+
+      if (session == null) {
         await logout();
-
         return false;
       }
     }
 
-    if (await isInactiveTooLong()) {
-      await logout();
-
+    if (revision != _revision ||
+        supabase.auth.currentUser?.id != userId ||
+        recovering ||
+        _signingOut) {
       return false;
     }
 
-    // No binding = allowed.
-    // Same device = allowed.
-    // Different device = rejected.
+    if (session.user.emailConfirmedAt == null) {
+      await logout();
+      return false;
+    }
+
     final deviceAllowed =
-    await DeviceBindingService.instance
-        .checkDeviceBinding();
+    await DeviceBindingService.instance.checkDeviceBinding();
+
+    if (revision != _revision ||
+        supabase.auth.currentUser?.id != userId ||
+        recovering ||
+        _signingOut) {
+      return false;
+    }
 
     if (!deviceAllowed) {
       await logout();
-
       return false;
     }
 
     await markActive();
 
-    return true;
+    return authorizedUserId.value == userId;
   }
 
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
   Future<void> logout() async {
+    if (_signingOut) {
+      return;
+    }
+
+    final userId = supabase.auth.currentUser?.id;
+
+    _signingOut = true;
+    clearAccess();
+
     try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      debugPrint(
-        'LOGOUT ERROR: $e',
+      await PushNotificationService.instance.detachCurrentDevice();
+
+      await supabase.auth.signOut(
+        scope: SignOutScope.local,
       );
+
+      await clearLocalSession(userId: userId);
     } finally {
-      await clearLocalSession();
+      _signingOut = false;
     }
   }
 
-  Future<void> clearLocalSession() async {
-    await _storage.delete(
-      key: _lastActiveKey,
-    );
+  Future<void> clearLocalSession({String? userId}) async {
+    final id = userId ?? supabase.auth.currentUser?.id;
+
+    if (id != null) {
+      await _storage.delete(key: _activityKey(id));
+    }
+
+    await _storage.delete(key: 'safezone_last_active_at');
   }
 }
